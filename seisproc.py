@@ -12,6 +12,8 @@ from scipy.signal import correlate
 
 from sklearn.preprocessing import StandardScaler
 
+import seaborn as sns
+
 
 def plot_time_signals(df, fs):
     """
