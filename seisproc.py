@@ -499,6 +499,49 @@ def plot_cross_cor(sig1, sig2, fs, name1='', name2=''):
     # return lag12, dt12, corr12, lags12
     return dt12
 
+def cross_corr_crossval_from_df(df, fs):
+    """
+    Виконує попарну кроскореляцію між сигналами різних геофонів для X, Y, Z компонент.
+
+    Parameters:
+        df (pd.DataFrame): датафрейм із колонками типу 'X1', 'Y11', 'Y12', 'Z1', ..., 'Z3'.
+        fs (float): частота дискретизації.
+
+    Returns:
+        delays_X, delays_Y, delays_Z: словники із затримками між парами компонент.
+    """
+
+    # --- Вибір колонок по осях
+    x_keys = [col for col in df.columns if col.startswith("X")]
+    y_keys = [col for col in df.columns if col.startswith("Y")]
+    z_keys = [col for col in df.columns if col.startswith("Z")]
+
+    delays_X, delays_Y, delays_Z = {}, {}, {}
+
+    # --- Попарні порівняння X-компонент
+    for i in range(len(x_keys)):
+        for j in range(i + 1, len(x_keys)):
+            k1, k2 = x_keys[i], x_keys[j]
+            label1, label2 = k1, k2
+            delays_X[(k1, k2)] = ssp.plot_cross_cor(df[k1].values, df[k2].values, fs, label1, label2)
+
+    # --- Попарні порівняння Y-компонент
+    for i in range(len(y_keys)):
+        for j in range(i + 1, len(y_keys)):
+            k1, k2 = y_keys[i], y_keys[j]
+            label1, label2 = k1, k2
+            delays_Y[(k1, k2)] = ssp.plot_cross_cor(df[k1].values, df[k2].values, fs, label1, label2)
+
+    # --- Попарні порівняння Z-компонент
+    for i in range(len(z_keys)):
+        for j in range(i + 1, len(z_keys)):
+            k1, k2 = z_keys[i], z_keys[j]
+            label1, label2 = k1, k2
+            delays_Z[(k1, k2)] = ssp.plot_cross_cor(df[k1].values, df[k2].values, fs, label1, label2)
+
+    return delays_X, delays_Y, delays_Z
+
+
 def cros_corr_all(x_keys, y_keys, z_keys, fs):
     """
     Обчислює та візуалізує попарну кроскореляцію для всіх сигналів осей X, Y, Z.
@@ -546,6 +589,18 @@ def cros_corr_all(x_keys, y_keys, z_keys, fs):
     return delays_X, delays_Y, delays_Z
 
 def plot_delay_matrix(delays, title):
+    """
+    Візуалізує затримки між парами сигналів у вигляді теплової карти (матриці затримок).
+
+    Parameters:
+        delays (dict): словник із затримками між парами сигналів.
+                       Формат ключів: (назва_сигналу_A, назва_сигналу_B), значення: затримка (float).
+        title (str): заголовок графіка.
+
+    Примітка:
+        Функція підтримує асиметричний словник delays. Якщо (A, B) є, але (B, A) — ні,
+        буде виведено лише відому затримку. Відсутні значення заповнюються NaN.
+    """
     labels = sorted(set(i for pair in delays for i in pair))
     matrix = np.zeros((len(labels), len(labels)))
 
