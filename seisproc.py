@@ -9,6 +9,7 @@ from scipy.stats.mstats import winsorize
 from scipy.signal import hilbert, find_peaks
 from scipy.signal import welch
 from scipy.signal import correlate
+from scipy.signal import coherence
 
 from sklearn.preprocessing import StandardScaler
 
@@ -621,3 +622,33 @@ def plot_delay_matrix(delays, title):
     # plt.xlabel("Сигнал B")
     # plt.ylabel("Сигнал A")
     plt.show()
+    
+
+def plot_coherence(sig1, sig2, fs, name1, name2):
+    """
+    Обчислює та візуалізує когерентність (coherence) між двома сигналами у частотній області.
+
+    Когерентність — це нормалізований показник схожості двох сигналів при різних частотах.
+    Значення лежать у межах [0, 1], де 1 означає повну залежність на певній частоті.
+
+    Parameters:
+        sig1 (np.ndarray): перший сигнал.
+        sig2 (np.ndarray): другий сигнал.
+        fs (float): частота дискретизації (Гц).
+        name1 (str): назва першого сигналу (для підпису графіка).
+        name2 (str): назва другого сигналу.
+
+    Returns:
+        None. Виводить графік когерентності.
+    """
+    # Обчислення когерентності через метод Уелча
+    f, Cxy = coherence(sig1, sig2, fs=fs, nperseg=1024)
+
+    # Побудова графіка в логарифмічному масштабі по осі Y
+    plt.semilogy(f, Cxy)
+    plt.xlabel('Частота (Гц)')
+    plt.ylabel('Когерентність')
+    plt.title(f'Когерентність між {name1} та {name2}')
+    plt.grid(True)
+    plt.show()
+
