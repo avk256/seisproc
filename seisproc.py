@@ -545,3 +545,22 @@ def cros_corr_all(x_keys, y_keys, z_keys, fs):
 
     return delays_X, delays_Y, delays_Z
 
+def plot_delay_matrix(delays, title):
+    labels = sorted(set(i for pair in delays for i in pair))
+    matrix = np.zeros((len(labels), len(labels)))
+
+    for i, row in enumerate(labels):
+        for j, col in enumerate(labels):
+            key = (row, col)
+            rev_key = (col, row)
+            if key in delays:
+                matrix[i, j] = delays[key]
+            else:
+                matrix[i, j] = np.nan  # якщо даних немає
+
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(matrix, xticklabels=labels, yticklabels=labels, annot=True, cmap="coolwarm", center=0)
+    plt.title(title)
+    # plt.xlabel("Сигнал B")
+    # plt.ylabel("Сигнал A")
+    plt.show()
