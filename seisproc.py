@@ -8,6 +8,7 @@ from scipy.signal import butter, filtfilt, spectrogram
 from scipy.stats.mstats import winsorize
 from scipy.signal import hilbert, find_peaks
 from scipy.signal import welch
+from scipy.signal import correlate
 
 from sklearn.preprocessing import StandardScaler
 
@@ -442,3 +443,105 @@ def compute_multiple_snr_sta_lta(
         ))
 
     return results
+
+def cross_corr(sig1, sig2, fs):
+    """
+    Обчислює кроскореляцію між двома сигналами та визначає часову затримку.
+
+    Parameters:
+        sig1 (np.ndarray): перший сигнал.
+        sig2 (np.ndarray): другий сигнал.
+        fs (float): частота дискретизації (Гц).
+
+    Returns:
+        lag (int): зсув у кількості відліків, що відповідає максимальній кореляції.
+        time_delay (float): затримка в секундах (lag / fs).
+        corr (np.ndarray): масив значень кроскореляції.
+        lags (np.ndarray): масив відповідних зсувів у відліках.
+    """
+    corr = correlate(sig2, sig1, mode='full')
+    lags = np.arange(-len(sig1) + 1, len(sig1))
+    lag = lags[np.argmax(corr)]
+    time_delay = lag / fs
+    return lag, time_delay, corr, lags
+
+def plot_cross_cor(sig1, sig2, fs, name1='', name2=''):
+    """
+    Візуалізує кроскореляцію між двома сигналами та виводить значення затримки.
+
+    Parameters:
+        sig1 (np.ndarray): перший сигнал.
+        sig2 (np.ndarray): другий сигнал.
+        fs (float): частота дискретизації (Гц).
+        name1 (str): назва першого сигналу для підпису.
+        name2 (str): назва другого сигналу для підпису.
+
+    Returns:
+        dt12 (float): затримка між сигналами у секундах.
+    """
+    lag12, dt12, corr12, lags12 = cross_corr(sig1, sig2, fs)
+
+    print(f"Затримка між {name1} та {name2}: {dt12:.4f} с")
+
+    # Візуалізація
+    plt.figure(figsize=(10, 4))
+    plt.plot(lags12 / fs, corr12, label=name1+" vs "+name2 )
+
+    plt.axvline(dt12, color='r', linestyle='--', label="Δt12")
+
+    plt.xlabel("Зсув (с)")
+    plt.ylabel("Кроскореляція")
+    plt.legend()
+    plt.title("Кроскореляція сигналів")
+    plt.grid()
+    plt.show()
+
+    # return lag12, dt12, corr12, lags12
+    return dt12
+
+def cros_corr_all(x_keys, y_keys, z_keys, fs):
+    """
+    Обчислює та візуалізує попарну кроскореляцію для всіх сигналів осей X, Y, Z.
+
+    Parameters:
+        x_keys (list of str): ключі сигналів по осі X.
+        y_keys (list of str): ключі сигналів по осі Y.
+        z_keys (list of str): ключі сигналів по осі Z.
+        fs (float): частота дискретизації (Гц).
+
+    Returns:
+        delays_X, delays_Y, delays_Z (dict): словники із затримками між усіма парами сигналів для кожної осі.
+            Ключ: (ключ_1, ключ_2), Значення: затримка в секундах.
+    """
+    # --- Для X
+    x_keys = x_keys
+    delays_X = {}
+    for k1 in x_keys:
+        for k2 in x_keys:
+            label1 = f"eks1_X{k1[-6]}"
+            label2 = f"eks1_X{k2[-6]}"
+            delays_X[(k1, k2)] = plot_cross_cor(normalized_data[k1], normalized_data[k2], fs, label1, label2)
+
+    # --- Для Z
+    z_keys = z_keys
+    delays_Z = {}
+    for k1 in z_keys:
+        for k2 in z_keys:
+            label1 = f"eks1_Z{k1[-6]}"
+            label2 = f"eks1_Z{k2[-6]}"
+            delays_Z[(k1, k2)] = plot_cross_cor(normalized_data[k1], normalized_data[k2], fs, label1, label2)
+
+    # --- Для Y
+    y_keys = y_keys
+
+    delays_Y = {}
+    for k1 in y_keys:
+        for k2 in y_keys:
+            # Витягаємо номер для формування мітки (наприклад, 'y1_21_norm' → '21')
+            label1 = f"eks1_Y{k1[3:5]}_norm"
+            label2 = f"eks1_Y{k2[3:5]}_norm"
+            delays_Y[(k1, k2)] = plot_cross_cor(normalized_data[k1], normalized_data[k2], fs, label1, label2)
+
+
+    return delays_X, delays_Y, delays_Z
+
