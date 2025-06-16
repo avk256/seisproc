@@ -9,7 +9,7 @@ from scipy.stats.mstats import winsorize
 from scipy.signal import hilbert, find_peaks
 from scipy.signal import welch
 from scipy.signal import correlate
-from scipy.signal import coherence
+from scipy.signal import stft, istft, coherence, convolve2d
 
 from sklearn.preprocessing import StandardScaler
 
@@ -651,4 +651,68 @@ def plot_coherence(sig1, sig2, fs, name1, name2):
     plt.title(f'Когерентність між {name1} та {name2}')
     plt.grid(True)
     plt.show()
+    
+def coherent_subtraction_aligned_with_mask(sig_primary, 
+                                           sig_reference, fs=600,
+                                           nperseg=1024, noverlap=512,
+                                           coherence_threshold=0.7):
+    """
+    Когерентне віднімання з урахуванням маски когерентності.
+    Враховує затримку, фазу, амплітуду і обмежує віднімання тільки до когерентних частот.
+    """
+
+    # --- Внутрішні допоміжні функції ---
+    def estimate_delay(sig1, sig2):
+        """Оцінка затримки між сигналами через крос-кореляцію."""
+        corr = np.correlate(sig1, sig2, mode='full')
+        lag = np.argmax(corr) - len(sig2) + 1
+        return lag
+
+    def shift_signal(sig, delay):
+        """Зсув сигналу на задану кількість семплів."""
+        if delay > 0:
+            return np.pad(sig, (delay, 0), mode='constant')[:len(sig)]
+        elif delay < 0:
+            return np.pad(sig, (0, -delay), mode='constant')[-delay:]
+        else:
+            return sig
+
+    def normalize_signal(sig):
+        """Нормалізація сигналу за амплітудою."""
+        return sig / (np.max(np.abs(sig)) + 1e-10)
+
+    # --- 1. Оцінка затримки ---
+    delay = estimate_delay(sig_primary, sig_reference)
+
+    # --- 2. Вирівнювання сигналів ---
+    sig_ref_aligned = shift_signal(sig_reference, delay)
+
+    # --- 3. STFT ---
+    f, t_stft, Z_primary = stft(sig_primary, fs=fs, nperseg=nperseg, noverlap=noverlap)
+    _, _, Z_reference = stft(sig_ref_aligned, fs=fs, nperseg=nperseg, noverlap=noverlap)
+
+    # --- 4. Оцінка когерентності ---
+    f_coh, Cxy = coherence(sig_primary, sig_ref_aligned, fs=fs, nperseg=nperseg, noverlap=noverlap)
+
+    # Побудова маски когерентності
+    coh_mask = (Cxy > coherence_threshold).astype(float)  # 1 – когерентна, 0 – ні
+    coh_mask_2d = coh_mask[:, np.newaxis]  # для STFT (freq x time)
+
+    # --- 5. Когерентне віднімання з маскою ---
+    gain = np.abs(Z_primary) / (np.abs(Z_reference) + 1e-10)
+    phase_correction = Z_reference / (np.abs(Z_reference) + 1e-10)
+    noise_estimate = gain * phase_correction
+
+    Z_clean = Z_primary - coh_mask_2d * noise_estimate  # застосування маски
+
+    # --- 6. Обернене перетворення ---
+    _, signal_cleaned = istft(Z_clean, fs=fs, nperseg=nperseg, noverlap=noverlap)
+
+    # --- 7. Постобробка ---
+    signal_cleaned = signal_cleaned[:len(sig_primary)]
+    signal_cleaned = normalize_signal(signal_cleaned)
+
+    return signal_cleaned, delay, coh_mask, f_coh
+    
+
 
