@@ -27,7 +27,7 @@ def plot_time_signals(df, fs):
     n_samples = df.shape[0]
     time = np.arange(n_samples) / fs
 
-    n_cols = 3
+    n_cols = 4
     n_rows = int(np.ceil(len(df.columns) / n_cols))
 
     fig, axes = plt.subplots(n_rows, n_cols, figsize=(15, 3.5 * n_rows), sharex=True)
