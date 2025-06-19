@@ -30,7 +30,7 @@ def plot_time_signals(df, fs):
     n_cols = 4
     n_rows = int(np.ceil(len(df.columns) / n_cols))
 
-    fig, axes = plt.subplots(n_rows, n_cols, figsize=(15, 3.5 * n_rows), sharex=True)
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(4.5 * n_cols, 3.5 * n_rows), sharex=True)
     axes = axes.flatten()
 
     for i, col in enumerate(df.columns):
@@ -41,12 +41,12 @@ def plot_time_signals(df, fs):
         axes[i].legend()
 
         # Додаємо підпис осі X лише для нижнього ряду
-        if i // n_cols == n_rows - 1:
-            axes[i].set_xlabel("Час [с]")
+        #if i // n_cols == n_rows - 1:
+        axes[i].set_xlabel("Час [с]")
 
     # Приховати зайві осі, якщо колонок менше
-    for j in range(len(df.columns), len(axes)):
-        axes[j].axis("off")
+    #for j in range(len(df.columns), len(axes)):
+        #axes[j].axis("off")
 
     plt.tight_layout()
     plt.show()
