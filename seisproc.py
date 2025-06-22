@@ -231,7 +231,6 @@ def extract_time_window(data, fs, time_range):
     i_end = int(t_end * fs)
     return data[i_start:i_end]
 
-# Повторимо STA/LTA обчислення для моделювання Rayleigh-сигналу
 def sta_lta_trigger(signal, fs, sta_win=0.2, lta_win=1.0, on_thresh=3.0, off_thresh=1.5):
     """
     Визначає часові межі сигналу у шумовому середовищі на основі методу STA/LTA (Short-Term Average / Long-Term Average).
@@ -269,6 +268,35 @@ def sta_lta_trigger(signal, fs, sta_win=0.2, lta_win=1.0, on_thresh=3.0, off_thr
             triggered = False
     return ratio, triggers
 
+# Використаємо вертикальну складову (Z)
+
+def plot_sta_lta(signal, fs, sta_win=0.2, lta_win=1.0, on_thresh=3.0, off_thresh=1.5):
+
+    ratio, triggers = ssp.sta_lta_trigger(signal, fs, sta_win=sta_win, lta_win=lta_win, on_thresh=on_thresh, off_thresh=off_thresh)
+
+    # Побудуємо графік STA/LTA і позначимо тригери
+    fig, ax = plt.subplots(2, 1, figsize=(10, 6), sharex=True)
+
+    n_samples = signal.shape[0]
+    time = np.arange(n_samples) / fs
+
+
+    # STA/LTA
+    ax[0].plot(time, ratio, label='STA/LTA')
+    ax[0].axhline(3.0, color='gray', linestyle='--', label='on_thresh')
+    ax[0].axhline(1.5, color='lightgray', linestyle='--', label='off_thresh')
+    for label, idx in triggers:
+        color = 'green' if label == 'start' else 'red'
+        ax[1].axvline(time[idx], color=color, linestyle='--')
+        print(time[idx])
+    ax[0].set_ylabel("STA / LTA")
+    ax[0].set_xlabel("Час [с]")
+    ax[0].legend()
+
+    plt.tight_layout()
+    plt.show()
+
+    return triggers
 
 def plot_hankel(Vr, Vz):
     """
