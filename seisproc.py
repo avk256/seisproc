@@ -623,6 +623,8 @@ def plot_delay_matrix(delays, title):
     # plt.ylabel("Сигнал A")
     plt.show()
     
+    return matrix
+    
 
 def plot_coherence(sig1, sig2, fs, name1, name2):
     """
