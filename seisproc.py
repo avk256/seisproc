@@ -530,14 +530,14 @@ def cross_corr_crossval_from_df(df, fs):
 
     # --- Попарні порівняння Y-компонент
     for i in range(len(y_keys)):
-        for j in range(i + 1, len(y_keys)):
+        for j in range(len(y_keys)):
             k1, k2 = y_keys[i], y_keys[j]
             label1, label2 = k1, k2
             delays_Y[(k1, k2)] = plot_cross_cor(df[k1].values, df[k2].values, fs, label1, label2)
 
     # --- Попарні порівняння Z-компонент
     for i in range(len(z_keys)):
-        for j in range(i + 1, len(z_keys)):
+        for j in range(len(z_keys)):
             k1, k2 = z_keys[i], z_keys[j]
             label1, label2 = k1, k2
             delays_Z[(k1, k2)] = plot_cross_cor(df[k1].values, df[k2].values, fs, label1, label2)
@@ -545,51 +545,51 @@ def cross_corr_crossval_from_df(df, fs):
     return delays_X, delays_Y, delays_Z
 
 
-def cros_corr_all(x_keys, y_keys, z_keys, fs):
-    """
-    Обчислює та візуалізує попарну кроскореляцію для всіх сигналів осей X, Y, Z.
+#def cros_corr_all(x_keys, y_keys, z_keys, fs):
+    #"""
+    #Обчислює та візуалізує попарну кроскореляцію для всіх сигналів осей X, Y, Z.
 
-    Parameters:
-        x_keys (list of str): ключі сигналів по осі X.
-        y_keys (list of str): ключі сигналів по осі Y.
-        z_keys (list of str): ключі сигналів по осі Z.
-        fs (float): частота дискретизації (Гц).
+    #Parameters:
+        #x_keys (list of str): ключі сигналів по осі X.
+        #y_keys (list of str): ключі сигналів по осі Y.
+        #z_keys (list of str): ключі сигналів по осі Z.
+        #fs (float): частота дискретизації (Гц).
 
-    Returns:
-        delays_X, delays_Y, delays_Z (dict): словники із затримками між усіма парами сигналів для кожної осі.
-            Ключ: (ключ_1, ключ_2), Значення: затримка в секундах.
-    """
-    # --- Для X
-    x_keys = x_keys
-    delays_X = {}
-    for k1 in x_keys:
-        for k2 in x_keys:
-            label1 = f"eks1_X{k1[-6]}"
-            label2 = f"eks1_X{k2[-6]}"
-            delays_X[(k1, k2)] = plot_cross_cor(normalized_data[k1], normalized_data[k2], fs, label1, label2)
+    #Returns:
+        #delays_X, delays_Y, delays_Z (dict): словники із затримками між усіма парами сигналів для кожної осі.
+            #Ключ: (ключ_1, ключ_2), Значення: затримка в секундах.
+    #"""
+    #--- Для X
+    #x_keys = x_keys
+    #delays_X = {}
+    #for k1 in x_keys:
+        #for k2 in x_keys:
+            #label1 = f"eks1_X{k1[-6]}"
+            #label2 = f"eks1_X{k2[-6]}"
+            #delays_X[(k1, k2)] = plot_cross_cor(normalized_data[k1], normalized_data[k2], fs, label1, label2)
 
-    # --- Для Z
-    z_keys = z_keys
-    delays_Z = {}
-    for k1 in z_keys:
-        for k2 in z_keys:
-            label1 = f"eks1_Z{k1[-6]}"
-            label2 = f"eks1_Z{k2[-6]}"
-            delays_Z[(k1, k2)] = plot_cross_cor(normalized_data[k1], normalized_data[k2], fs, label1, label2)
+    #--- Для Z
+    #z_keys = z_keys
+    #delays_Z = {}
+    #for k1 in z_keys:
+        #for k2 in z_keys:
+            #label1 = f"eks1_Z{k1[-6]}"
+            #label2 = f"eks1_Z{k2[-6]}"
+            #delays_Z[(k1, k2)] = plot_cross_cor(normalized_data[k1], normalized_data[k2], fs, label1, label2)
 
-    # --- Для Y
-    y_keys = y_keys
+    #--- Для Y
+    #y_keys = y_keys
 
-    delays_Y = {}
-    for k1 in y_keys:
-        for k2 in y_keys:
-            # Витягаємо номер для формування мітки (наприклад, 'y1_21_norm' → '21')
-            label1 = f"eks1_Y{k1[3:5]}_norm"
-            label2 = f"eks1_Y{k2[3:5]}_norm"
-            delays_Y[(k1, k2)] = plot_cross_cor(normalized_data[k1], normalized_data[k2], fs, label1, label2)
+    #delays_Y = {}
+    #for k1 in y_keys:
+        #for k2 in y_keys:
+            #Витягаємо номер для формування мітки (наприклад, 'y1_21_norm' → '21')
+            #label1 = f"eks1_Y{k1[3:5]}_norm"
+            #label2 = f"eks1_Y{k2[3:5]}_norm"
+            #delays_Y[(k1, k2)] = plot_cross_cor(normalized_data[k1], normalized_data[k2], fs, label1, label2)
 
 
-    return delays_X, delays_Y, delays_Z
+    #return delays_X, delays_Y, delays_Z
 
 def plot_delay_matrix(delays, title):
     """
