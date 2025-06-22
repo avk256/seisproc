@@ -523,7 +523,7 @@ def cross_corr_crossval_from_df(df, fs):
 
     # --- Попарні порівняння X-компонент
     for i in range(len(x_keys)):
-        for j in range(i + 1, len(x_keys)):
+        for j in range(len(x_keys)):
             k1, k2 = x_keys[i], x_keys[j]
             label1, label2 = k1, k2
             delays_X[(k1, k2)] = plot_cross_cor(df[k1].values, df[k2].values, fs, label1, label2)
