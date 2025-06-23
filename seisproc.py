@@ -231,6 +231,17 @@ def extract_time_window(data, fs, time_range):
     i_end = int(t_end * fs)
     return data[i_start:i_end]
 
+def cut_time_window(Vr, Vz, fs, start_time, end_time):
+
+    display(start_time)
+    display(end_time)
+
+    Vr_wind = ssp.extract_time_window(Vr, fs, (start_time, end_time))
+    Vz_wind = ssp.extract_time_window(Vz, fs, (start_time, end_time))
+
+    return Vr_wind, Vz_wind 
+
+
 def sta_lta_trigger(signal, fs, sta_win=0.2, lta_win=1.0, on_thresh=3.0, off_thresh=1.5):
     """
     Визначає часові межі сигналу у шумовому середовищі на основі методу STA/LTA (Short-Term Average / Long-Term Average).
