@@ -233,11 +233,11 @@ def extract_time_window(data, fs, time_range):
 
 def cut_time_window(Vr, Vz, fs, start_time, end_time):
 
-    display(start_time)
-    display(end_time)
+    print(start_time)
+    print(end_time)
 
-    Vr_wind = ssp.extract_time_window(Vr, fs, (start_time, end_time))
-    Vz_wind = ssp.extract_time_window(Vz, fs, (start_time, end_time))
+    Vr_wind = extract_time_window(Vr, fs, (start_time, end_time))
+    Vz_wind = extract_time_window(Vz, fs, (start_time, end_time))
 
     return Vr_wind, Vz_wind 
 
