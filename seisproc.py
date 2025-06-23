@@ -16,13 +16,14 @@ from sklearn.preprocessing import StandardScaler
 import seaborn as sns
 
 
-def plot_time_signals(df, fs):
+def plot_time_signals(df, fs, threshold, verbose=True):
     """
-    Візуалізує часові сигнали зі всіх стовпців датафрейму.
+    Візуалізує часові сигнали та виводить часи і значення всіх амплітуд, які перевищують поріг.
 
     Parameters:
     - df: pandas.DataFrame — сигнал у 12 колонках (або інша кількість)
     - fs: float — частота дискретизації (Гц)
+    - threshold: float — порогове значення амплітуди (за модулем)
     """
     n_samples = df.shape[0]
     time = np.arange(n_samples) / fs
@@ -34,25 +35,31 @@ def plot_time_signals(df, fs):
     axes = axes.flatten()
 
     for i, col in enumerate(df.columns):
-        axes[i].plot(time, df[col], label=col)
+        signal = df[col].values
+        above_thresh_idx = np.where(np.abs(signal) >= threshold)[0]
+        peak_times = time[above_thresh_idx]
+        peak_values = signal[above_thresh_idx]
+
+        if (verbose):
+            print(f"\nСигнал {col}: {len(peak_times)} значення(нь) вище порогу {threshold}")
+            for t, v in zip(peak_times, peak_values):
+                print(f"  Час = {t:.4f} с, Амплітуда = {v:.4f}")
+
+        axes[i].plot(time, signal, label=col)
+        axes[i].plot(peak_times, peak_values, 'ro', label='Піки > поріг')
         axes[i].set_title(f"Сигнал: {col}")
         axes[i].set_ylabel("Амплітуда")
+        axes[i].set_xlabel("Час [с]")
         axes[i].grid(True)
         axes[i].legend()
 
-        # Додаємо підпис осі X лише для нижнього ряду
-        #if i // n_cols == n_rows - 1:
-        axes[i].set_xlabel("Час [с]")
-
-    # Приховати зайві осі, якщо колонок менше
-    #for j in range(len(df.columns), len(axes)):
-        #axes[j].axis("off")
+    # Приховати зайві осі
+    for j in range(len(df.columns), len(axes)):
+        axes[j].axis("off")
 
     plt.tight_layout()
     plt.show()
-
-    # return time
-
+    
 def butter_bandpass_filter(data, lowcut, highcut, fs, order=4):
     """
     Застосовує смуговий Butterworth-фільтр до сигналу.
