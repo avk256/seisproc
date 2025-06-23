@@ -16,7 +16,7 @@ from sklearn.preprocessing import StandardScaler
 import seaborn as sns
 
 
-def plot_time_signals(df, fs, threshold, verbose=True):
+def plot_time_signals(df, fs, threshold=0.5, verbose=True):
     """
     Візуалізує часові сигнали та виводить часи і значення всіх амплітуд, які перевищують поріг.
 
