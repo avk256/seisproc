@@ -272,7 +272,7 @@ def sta_lta_trigger(signal, fs, sta_win=0.2, lta_win=1.0, on_thresh=3.0, off_thr
 
 def plot_sta_lta(signal, fs, sta_win=0.2, lta_win=1.0, on_thresh=3.0, off_thresh=1.5):
 
-    ratio, triggers = ssp.sta_lta_trigger(signal, fs, sta_win=sta_win, lta_win=lta_win, on_thresh=on_thresh, off_thresh=off_thresh)
+    ratio, triggers = sta_lta_trigger(signal, fs, sta_win=sta_win, lta_win=lta_win, on_thresh=on_thresh, off_thresh=off_thresh)
 
     # Побудуємо графік STA/LTA і позначимо тригери
     fig, ax = plt.subplots(2, 1, figsize=(10, 6), sharex=True)
