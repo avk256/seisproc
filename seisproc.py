@@ -539,26 +539,62 @@ def compute_multiple_snr_sta_lta(
 
     return results
 
-def cross_corr(sig1, sig2, fs):
+#def cross_corr(sig1, sig2, fs):
+    #"""
+    #Обчислює кроскореляцію між двома сигналами та визначає часову затримку.
+
+    #Parameters:
+        #sig1 (np.ndarray): перший сигнал.
+        #sig2 (np.ndarray): другий сигнал.
+        #fs (float): частота дискретизації (Гц).
+
+    #Returns:
+        #lag (int): зсув у кількості відліків, що відповідає максимальній кореляції.
+        #time_delay (float): затримка в секундах (lag / fs).
+        #corr (np.ndarray): масив значень кроскореляції.
+        #lags (np.ndarray): масив відповідних зсувів у відліках.
+    #"""
+    #corr = correlate(sig2, sig1, mode='full')
+    #lags = np.arange(-len(sig1) + 1, len(sig1))
+    #lag = lags[np.argmax(corr)]
+    #time_delay = lag / fs
+    #return lag, time_delay, corr, lags
+
+def cross_corr(sig1, sig2, fs, max_lag_s=None):
     """
-    Обчислює кроскореляцію між двома сигналами та визначає часову затримку.
+    Обчислює кроскореляцію між двома сигналами та визначає часову затримку,
+    з можливістю обмеження ширини вікна лагів.
 
     Parameters:
         sig1 (np.ndarray): перший сигнал.
         sig2 (np.ndarray): другий сигнал.
         fs (float): частота дискретизації (Гц).
+        max_lag_s (float or None): максимальна затримка в секундах (+/-), що розглядатиметься. 
+                                   Якщо None — використовується повна кроскореляція.
 
     Returns:
         lag (int): зсув у кількості відліків, що відповідає максимальній кореляції.
         time_delay (float): затримка в секундах (lag / fs).
-        corr (np.ndarray): масив значень кроскореляції.
-        lags (np.ndarray): масив відповідних зсувів у відліках.
+        corr (np.ndarray): масив значень кроскореляції (обрізаний, якщо задано max_lag_s).
+        lags (np.ndarray): масив відповідних зсувів у відліках (обрізаний).
     """
     corr = correlate(sig2, sig1, mode='full')
-    lags = np.arange(-len(sig1) + 1, len(sig1))
+    total_lags = np.arange(-len(sig1) + 1, len(sig2))
+    
+    if max_lag_s is not None:
+        max_lag_samples = int(max_lag_s * fs)
+        center = len(corr) // 2
+        start = max(0, center - max_lag_samples)
+        end = min(len(corr), center + max_lag_samples + 1)
+        corr = corr[start:end]
+        lags = total_lags[start:end]
+    else:
+        lags = total_lags
+
     lag = lags[np.argmax(corr)]
     time_delay = lag / fs
     return lag, time_delay, corr, lags
+
 
 def plot_cross_cor(sig1, sig2, fs, name1='', name2='', verbose=False):
     """
