@@ -621,21 +621,21 @@ def cross_corr_crossval_from_df(df, fs, verbose=True):
             label1, label2 = k1, k2
             print(label1)
             print(label2)
-            delays_X[(k1, k2)] = plot_cross_cor(df[k1].values, df[k2].values, fs, label1, label2, verbose=True)
+            delays_X[(k1, k2)] = plot_cross_cor(df[k1].values, df[k2].values, fs, label1, label2, verbose=verbose)
 
     # --- Попарні порівняння Y-компонент
     for i in range(len(y_keys)):
         for j in range(len(y_keys)):
             k1, k2 = y_keys[i], y_keys[j]
             label1, label2 = k1, k2
-            delays_Y[(k1, k2)] = plot_cross_cor(df[k1].values, df[k2].values, fs, label1, label2, verbose=True)
+            delays_Y[(k1, k2)] = plot_cross_cor(df[k1].values, df[k2].values, fs, label1, label2, verbose=verbose)
 
     # --- Попарні порівняння Z-компонент
     for i in range(len(z_keys)):
         for j in range(len(z_keys)):
             k1, k2 = z_keys[i], z_keys[j]
             label1, label2 = k1, k2
-            delays_Z[(k1, k2)] = plot_cross_cor(df[k1].values, df[k2].values, fs, label1, label2, verbose=True)
+            delays_Z[(k1, k2)] = plot_cross_cor(df[k1].values, df[k2].values, fs, label1, label2, verbose=verbose)
 
     return delays_X, delays_Y, delays_Z
 
