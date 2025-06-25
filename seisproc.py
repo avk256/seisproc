@@ -15,50 +15,96 @@ from sklearn.preprocessing import StandardScaler
 
 import seaborn as sns
 
+import plotly.subplots as psp
+import plotly.graph_objs as go
 
-def plot_time_signals(df, fs, n_cols=4, threshold=0.5, verbose=False):
+
+
+def plot_time_signals(df, fs, n_cols=4, threshold=0.5, verbose=False, mode='matplotlib'):
     """
     Візуалізує часові сигнали та виводить часи і значення всіх амплітуд, які перевищують поріг.
 
     Parameters:
-    - df: pandas.DataFrame — сигнал у 12 колонках (або інша кількість)
+    - df: pandas.DataFrame — сигнал у стовпцях
     - fs: float — частота дискретизації (Гц)
-    - threshold: float — порогове значення амплітуди (за модулем)
+    - n_cols: int — кількість колонок у сітці графіків
+    - threshold: float — поріг амплітуди (по модулю)
+    - verbose: bool — виводити часи та значення пік-амплітуд
+    - mode: str — 'matplotlib' або 'plotly'
     """
     n_samples = df.shape[0]
     time = np.arange(n_samples) / fs
+    n_signals = len(df.columns)
+    n_rows = int(np.ceil(n_signals / n_cols))
 
-    #n_cols = 4
-    n_rows = int(np.ceil(len(df.columns) / n_cols))
+    if mode == 'matplotlib':
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=(4.5 * n_cols, 3.5 * n_rows), sharex=True)
+        axes = axes.flatten()
 
-    fig, axes = plt.subplots(n_rows, n_cols, figsize=(4.5 * n_cols, 3.5 * n_rows), sharex=True)
-    axes = axes.flatten()
+        for i, col in enumerate(df.columns):
+            signal = df[col].values
+            above_thresh_idx = np.where(np.abs(signal) >= threshold)[0]
+            peak_times = time[above_thresh_idx]
+            peak_values = signal[above_thresh_idx]
 
-    for i, col in enumerate(df.columns):
-        signal = df[col].values
-        above_thresh_idx = np.where(np.abs(signal) >= threshold)[0]
-        peak_times = time[above_thresh_idx]
-        peak_values = signal[above_thresh_idx]
+            if verbose:
+                print(f"\nСигнал {col}: {len(peak_times)} значення(нь) вище порогу {threshold}")
+                for t, v in zip(peak_times, peak_values):
+                    print(f"  Час = {t:.4f} с, Амплітуда = {v:.4f}")
 
-        if (verbose):
-            print(f"\nСигнал {col}: {len(peak_times)} значення(нь) вище порогу {threshold}")
-            for t, v in zip(peak_times, peak_values):
-                print(f"  Час = {t:.4f} с, Амплітуда = {v:.4f}")
+            axes[i].plot(time, signal, label=col)
+            axes[i].plot(peak_times, peak_values, 'ro', label='Піки > поріг')
+            axes[i].set_title(f"Сигнал: {col}")
+            axes[i].set_ylabel("Амплітуда")
+            axes[i].set_xlabel("Час [с]")
+            axes[i].grid(True)
+            axes[i].legend()
 
-        axes[i].plot(time, signal, label=col)
-        axes[i].plot(peak_times, peak_values, 'ro', label='Піки > поріг')
-        axes[i].set_title(f"Сигнал: {col}")
-        axes[i].set_ylabel("Амплітуда")
-        axes[i].set_xlabel("Час [с]")
-        axes[i].grid(True)
-        axes[i].legend()
+        for j in range(n_signals, len(axes)):
+            axes[j].axis("off")
 
-    # Приховати зайві осі
-    for j in range(len(df.columns), len(axes)):
-        axes[j].axis("off")
+        plt.tight_layout()
+        plt.show()
 
-    plt.tight_layout()
-    plt.show()
+    elif mode == 'plotly':
+        fig = psp.make_subplots(rows=n_rows, cols=n_cols, shared_xaxes=True,
+                                subplot_titles=[f"Сигнал: {col}" for col in df.columns])
+
+        for idx, col in enumerate(df.columns):
+            row = idx // n_cols + 1
+            col_pos = idx % n_cols + 1
+            signal = df[col].values
+            above_thresh_idx = np.where(np.abs(signal) >= threshold)[0]
+            peak_times = time[above_thresh_idx]
+            peak_values = signal[above_thresh_idx]
+
+            if verbose:
+                print(f"\nСигнал {col}: {len(peak_times)} значення(нь) вище порогу {threshold}")
+                for t, v in zip(peak_times, peak_values):
+                    print(f"  Час = {t:.4f} с, Амплітуда = {v:.4f}")
+
+            fig.add_trace(go.Scatter(x=time, y=signal, mode='lines', name=col,
+                                     showlegend=False), row=row, col=col_pos)
+            fig.add_trace(go.Scatter(x=peak_times, y=peak_values, mode='markers',
+                                     marker=dict(color='red', size=6), name='Піки > поріг',
+                                     showlegend=False), row=row, col=col_pos)
+
+        fig.update_layout(
+            height=400 * n_rows,
+            width=500 * n_cols,
+            title_text="Часові сигнали з позначенням піків",
+            showlegend=False
+        )
+
+        fig.update_xaxes(title_text="Час [с]")
+        fig.update_yaxes(title_text="Амплітуда")
+
+        # Відобразити повний тулбар Plotly
+        fig.show(config=dict(displayModeBar=True, responsive=True))
+
+    else:
+        raise ValueError("mode має бути 'matplotlib' або 'plotly'")
+
     
 def butter_bandpass_filter(data, lowcut, highcut, fs, order=4):
     """
