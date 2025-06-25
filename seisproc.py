@@ -560,7 +560,7 @@ def cross_corr(sig1, sig2, fs):
     time_delay = lag / fs
     return lag, time_delay, corr, lags
 
-def plot_cross_cor(sig1, sig2, fs, name1='', name2=''):
+def plot_cross_cor(sig1, sig2, fs, name1='', name2='', verbose=True):
     """
     Візуалізує кроскореляцію між двома сигналами та виводить значення затримки.
 
@@ -589,12 +589,13 @@ def plot_cross_cor(sig1, sig2, fs, name1='', name2=''):
     plt.legend()
     plt.title("Кроскореляція сигналів")
     plt.grid()
-    plt.show()
+    if verbose:
+        plt.show()
 
     # return lag12, dt12, corr12, lags12
     return dt12
 
-def cross_corr_crossval_from_df(df, fs):
+def cross_corr_crossval_from_df(df, fs, verbose=True):
     """
     Виконує попарну кроскореляцію між сигналами різних геофонів для X, Y, Z компонент.
 
@@ -620,21 +621,21 @@ def cross_corr_crossval_from_df(df, fs):
             label1, label2 = k1, k2
             print(label1)
             print(label2)
-            delays_X[(k1, k2)] = plot_cross_cor(df[k1].values, df[k2].values, fs, label1, label2)
+            delays_X[(k1, k2)] = plot_cross_cor(df[k1].values, df[k2].values, fs, label1, label2, verbose=True)
 
     # --- Попарні порівняння Y-компонент
     for i in range(len(y_keys)):
         for j in range(len(y_keys)):
             k1, k2 = y_keys[i], y_keys[j]
             label1, label2 = k1, k2
-            delays_Y[(k1, k2)] = plot_cross_cor(df[k1].values, df[k2].values, fs, label1, label2)
+            delays_Y[(k1, k2)] = plot_cross_cor(df[k1].values, df[k2].values, fs, label1, label2, verbose=True)
 
     # --- Попарні порівняння Z-компонент
     for i in range(len(z_keys)):
         for j in range(len(z_keys)):
             k1, k2 = z_keys[i], z_keys[j]
             label1, label2 = k1, k2
-            delays_Z[(k1, k2)] = plot_cross_cor(df[k1].values, df[k2].values, fs, label1, label2)
+            delays_Z[(k1, k2)] = plot_cross_cor(df[k1].values, df[k2].values, fs, label1, label2, verbose=True)
 
     return delays_X, delays_Y, delays_Z
 
