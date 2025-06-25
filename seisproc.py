@@ -560,7 +560,7 @@ def cross_corr(sig1, sig2, fs):
     time_delay = lag / fs
     return lag, time_delay, corr, lags
 
-def plot_cross_cor(sig1, sig2, fs, name1='', name2='', verbose=True):
+def plot_cross_cor(sig1, sig2, fs, name1='', name2='', verbose=False):
     """
     Візуалізує кроскореляцію між двома сигналами та виводить значення затримки.
 
@@ -576,26 +576,26 @@ def plot_cross_cor(sig1, sig2, fs, name1='', name2='', verbose=True):
     """
     lag12, dt12, corr12, lags12 = cross_corr(sig1, sig2, fs)
 
-    print(f"Затримка між {name1} та {name2}: {dt12:.4f} с")
+    #print(f"Затримка між {name1} та {name2}: {dt12:.4f} с")
 
     # Візуалізація
-    plt.figure(figsize=(10, 4))
-    plt.plot(lags12 / fs, corr12, label=name1+" vs "+name2 )
-
-    plt.axvline(dt12, color='r', linestyle='--', label="Δt12")
-
-    plt.xlabel("Зсув (с)")
-    plt.ylabel("Кроскореляція")
-    plt.legend()
-    plt.title("Кроскореляція сигналів")
-    plt.grid()
     if verbose:
+        plt.figure(figsize=(10, 4))
+        plt.plot(lags12 / fs, corr12, label=name1+" vs "+name2 )
+
+        plt.axvline(dt12, color='r', linestyle='--', label="Δt12")
+
+        plt.xlabel("Зсув (с)")
+        plt.ylabel("Кроскореляція")
+        plt.legend()
+        plt.title("Кроскореляція сигналів")
+        plt.grid()    
         plt.show()
 
     # return lag12, dt12, corr12, lags12
     return dt12
 
-def cross_corr_crossval_from_df(df, fs, verbose=True):
+def cross_corr_crossval_from_df(df, fs, verbose=False):
     """
     Виконує попарну кроскореляцію між сигналами різних геофонів для X, Y, Z компонент.
 
@@ -619,8 +619,8 @@ def cross_corr_crossval_from_df(df, fs, verbose=True):
         for j in range(len(x_keys)):
             k1, k2 = x_keys[i], x_keys[j]
             label1, label2 = k1, k2
-            print(label1)
-            print(label2)
+            #print(label1)
+            #print(label2)
             delays_X[(k1, k2)] = plot_cross_cor(df[k1].values, df[k2].values, fs, label1, label2, verbose=verbose)
 
     # --- Попарні порівняння Y-компонент
