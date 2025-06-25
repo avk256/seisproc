@@ -846,6 +846,67 @@ def coherent_subtraction_aligned_with_mask(sig_primary,
     signal_cleaned = normalize_signal(signal_cleaned)
 
     return signal_cleaned, delay, coh_mask, f_coh
+
+def smooth_dataframe(df, method='savgol', fs=1000, **kwargs):
+    """
+    Застосовує згладжування до кожної колонки DataFrame з урахуванням крайових ефектів.
+
+    Parameters:
+    - df: pandas.DataFrame — вхідний датафрейм із сигналами
+    - method: str — метод згладжування ('savgol', 'moving', 'lowess')
+    - fs: float — частота дискретизації (Гц)
+    - **kwargs:
+        - window_s: ширина вікна у секундах (альтернатива window_length/window)
+        - polyorder: для 'savgol'
+        - frac: для 'lowess'
+
+    Returns:
+    - pandas.DataFrame — датафрейм зі згладженими сигналами
+    """
+    df_smoothed = pd.DataFrame(index=df.index)
+
+    for col in df.columns:
+        signal = df[col].values
+        n = len(signal)
+
+        if method == 'savgol':
+            if 'window_s' in kwargs:
+                window_length = int(kwargs['window_s'] * fs)
+                if window_length % 2 == 0:
+                    window_length += 1
+            else:
+                window_length = kwargs.get('window_length', 11)
+
+            polyorder = kwargs.get('polyorder', 2)
+
+            # Дзеркальне доповнення
+            pad = window_length // 2
+            padded_signal = np.pad(signal, pad_width=pad, mode='reflect')
+            smoothed_padded = savgol_filter(padded_signal, window_length=window_length, polyorder=polyorder)
+            smoothed = smoothed_padded[pad:-pad]
+
+        elif method == 'moving':
+            if 'window_s' in kwargs:
+                window = int(kwargs['window_s'] * fs)
+            else:
+                window = kwargs.get('window', 5)
+
+            pad = window // 2
+            padded_signal = np.pad(signal, pad_width=pad, mode='reflect')
+            smoothed_padded = pd.Series(padded_signal).rolling(window=window, center=True).mean().to_numpy()
+            smoothed = smoothed_padded[pad:-pad]
+
+        elif method == 'lowess':
+            # LOWESS сам обробляє краї за допомогою ваг
+            frac = kwargs.get('frac', 0.1)
+            smoothed = lowess(signal, np.arange(n), frac=frac, return_sorted=False)
+
+        else:
+            raise ValueError(f"Метод '{method}' не підтримується. Оберіть 'savgol', 'moving', або 'lowess'.")
+
+        df_smoothed[col] = smoothed
+
+    return df_smoothed
     
 
 
