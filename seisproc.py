@@ -39,7 +39,7 @@ def detrend_dataframe(df, type='linear'):
 
     return df_detrended
 
-def plot_time_signals(df, fs, n_cols=4, threshold=0.5, verbose=False, mode='matplotlib'):
+def plot_time_signals(df, fs, n_cols=4, threshold=0.5, verbose=False, mode='plotly'):
     """
     Візуалізує часові сигнали та виводить часи і значення всіх амплітуд, які перевищують поріг.
 
