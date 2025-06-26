@@ -766,7 +766,7 @@ def cross_corr_crossval_from_df(df, fs, verbose=False, allowed_lag_ranges_s=None
 
     # --- Попарні порівняння X-компонент
     for i in range(len(x_keys)):
-        for j in range(len(x_keys)):
+        for j in range(i+1, len(x_keys)):
             k1, k2 = x_keys[i], x_keys[j]
             label1, label2 = k1, k2
             #print(label1)
@@ -775,14 +775,14 @@ def cross_corr_crossval_from_df(df, fs, verbose=False, allowed_lag_ranges_s=None
 
     # --- Попарні порівняння Y-компонент
     for i in range(len(y_keys)):
-        for j in range(len(y_keys)):
+        for j in range(i+1,len(y_keys)):
             k1, k2 = y_keys[i], y_keys[j]
             label1, label2 = k1, k2
             delays_Y[(k1, k2)] = plot_cross_cor(df[k1].values, df[k2].values, fs, label1, label2, verbose=verbose, allowed_lag_ranges_s=allowed_lag_ranges_s)
 
     # --- Попарні порівняння Z-компонент
     for i in range(len(z_keys)):
-        for j in range(len(z_keys)):
+        for j in range(i+1,len(z_keys)):
             k1, k2 = z_keys[i], z_keys[j]
             label1, label2 = k1, k2
             delays_Z[(k1, k2)] = plot_cross_cor(df[k1].values, df[k2].values, fs, label1, label2, verbose=verbose, allowed_lag_ranges_s=allowed_lag_ranges_s)
