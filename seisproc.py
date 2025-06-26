@@ -18,6 +18,8 @@ import seaborn as sns
 
 import plotly.subplots as psp
 import plotly.graph_objs as go
+from statsmodels.nonparametric.smoothers_lowess import lowess
+from scipy.signal import savgol_filter
 
 def detrend_dataframe(df, type='linear'):
     """
