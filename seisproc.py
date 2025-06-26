@@ -10,6 +10,7 @@ from scipy.signal import hilbert, find_peaks
 from scipy.signal import welch
 from scipy.signal import correlate
 from scipy.signal import stft, istft, coherence, convolve2d
+from scipy.signal import detrend
 
 from sklearn.preprocessing import StandardScaler
 
@@ -18,7 +19,25 @@ import seaborn as sns
 import plotly.subplots as psp
 import plotly.graph_objs as go
 
+def detrend_dataframe(df, type='linear'):
+    """
+    Застосовує scipy.signal.detrend до кожної колонки датафрейму.
 
+    Parameters:
+    - df: pandas.DataFrame — вхідні сигнали
+    - type: str — тип детрендування ('linear' або 'constant')
+
+    Returns:
+    - pandas.DataFrame — детрендований датафрейм
+    """
+    df_detrended = pd.DataFrame(index=df.index)
+
+    for col in df.columns:
+        signal = df[col].values
+        detrended_signal = detrend(signal, type=type)
+        df_detrended[col] = detrended_signal
+
+    return df_detrended
 
 def plot_time_signals(df, fs, n_cols=4, threshold=0.5, verbose=False, mode='matplotlib'):
     """
