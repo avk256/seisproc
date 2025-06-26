@@ -617,51 +617,100 @@ def compute_multiple_snr_sta_lta(
 import numpy as np
 from scipy.signal import correlate
 
-def cross_corr(sig1, sig2, fs, min_lag_s=None, max_lag_s=None):
+#def cross_corr(sig1, sig2, fs, min_lag_s=None, max_lag_s=None):
+    #"""
+    #Обчислює кроскореляцію між двома сигналами та визначає часову затримку
+    #в заданому інтервалі лагів (затримок).
+
+    #Parameters:
+        #sig1 (np.ndarray): перший сигнал.
+        #sig2 (np.ndarray): другий сигнал.
+        #fs (float): частота дискретизації (Гц).
+        #min_lag_s (float or None): мінімальна очікувана затримка (секунди). Якщо None, береться мінімально можливе значення.
+        #max_lag_s (float or None): максимальна очікувана затримка (секунди). Якщо None, береться максимально можливе значення.
+
+    #Returns:
+        #lag (int): зсув у кількості відліків, що відповідає максимальній кореляції.
+        #time_delay (float): затримка в секундах (lag / fs).
+        #corr (np.ndarray): масив значень кроскореляції (обрізаний, якщо задано діапазон).
+        #lags (np.ndarray): масив відповідних зсувів у відліках (обрізаний).
+    #"""
+
+    #Обчислення повної кроскореляції між сигналами
+    #corr = correlate(sig2, sig1, mode='full')
+
+    #Масив усіх можливих зсувів (лагів) — від -(len(sig1)-1) до +(len(sig2)-1)
+    #total_lags = np.arange(-len(sig1) + 1, len(sig2))
+
+    #Якщо діапазон не заданий — використовуємо повний
+    #min_lag_samples = int(min_lag_s * fs) if min_lag_s is not None else total_lags[0]
+    #max_lag_samples = int(max_lag_s * fs) if max_lag_s is not None else total_lags[-1]
+
+    #Створення маски, яка залишає лише лаги у заданому інтервалі
+    #mask = (total_lags >= min_lag_samples) & (total_lags <= max_lag_samples)
+
+    #Застосування маски до лагів і до кроскореляції
+    #lags = total_lags[mask]
+    #corr = corr[mask]
+
+    #Пошук лагу, що відповідає максимуму кореляції
+    #lag = lags[np.argmax(corr)]
+
+    #Переведення лагу у секунди
+    #time_delay = lag / fs
+
+    #return lag, time_delay, corr, lags
+    
+def cross_corr(sig1, sig2, fs, allowed_lag_ranges_s=None):
     """
-    Обчислює кроскореляцію між двома сигналами та визначає часову затримку
-    в заданому інтервалі лагів (затримок).
+    Обчислює кроскореляцію між двома сигналами та визначає затримку
+    лише в межах заданих інтервалів лагів (у секундах).
 
     Parameters:
         sig1 (np.ndarray): перший сигнал.
         sig2 (np.ndarray): другий сигнал.
         fs (float): частота дискретизації (Гц).
-        min_lag_s (float or None): мінімальна очікувана затримка (секунди). Якщо None, береться мінімально можливе значення.
-        max_lag_s (float or None): максимальна очікувана затримка (секунди). Якщо None, береться максимально можливе значення.
+        allowed_lag_ranges_s (list of tuple): список дозволених інтервалів затримок у секундах, наприклад:
+            [(-0.05, -0.03), (-0.005, 0.005), (0.03, 0.05)]
 
     Returns:
-        lag (int): зсув у кількості відліків, що відповідає максимальній кореляції.
-        time_delay (float): затримка в секундах (lag / fs).
-        corr (np.ndarray): масив значень кроскореляції (обрізаний, якщо задано діапазон).
-        lags (np.ndarray): масив відповідних зсувів у відліках (обрізаний).
+        lag (int or None): зсув у кількості відліків (None, якщо не знайдено).
+        time_delay (float or None): затримка в секундах (lag / fs).
+        corr (np.ndarray): масив значень кроскореляції (тільки в дозволених інтервалах).
+        lags (np.ndarray): масив відповідних зсувів у відліках.
     """
 
-    # Обчислення повної кроскореляції між сигналами
-    corr = correlate(sig2, sig1, mode='full')
-
-    # Масив усіх можливих зсувів (лагів) — від -(len(sig1)-1) до +(len(sig2)-1)
+    # Повна кроскореляція між сигналами
+    corr_full = correlate(sig2, sig1, mode='full')
     total_lags = np.arange(-len(sig1) + 1, len(sig2))
 
-    # Якщо діапазон не заданий — використовуємо повний
-    min_lag_samples = int(min_lag_s * fs) if min_lag_s is not None else total_lags[0]
-    max_lag_samples = int(max_lag_s * fs) if max_lag_s is not None else total_lags[-1]
+    # Якщо не задано allowed_lag_ranges_s — використовуємо всю шкалу
+    if allowed_lag_ranges_s is None:
+        mask = np.ones_like(total_lags, dtype=bool)
+    else:
+        # Створюємо маску, яка залишає тільки лаги в дозволених діапазонах
+        mask = np.zeros_like(total_lags, dtype=bool)
+        for lag_range in allowed_lag_ranges_s:
+            min_lag = int(np.floor(lag_range[0] * fs))
+            max_lag = int(np.ceil(lag_range[1] * fs))
+            mask |= (total_lags >= min_lag) & (total_lags <= max_lag)
 
-    # Створення маски, яка залишає лише лаги у заданому інтервалі
-    mask = (total_lags >= min_lag_samples) & (total_lags <= max_lag_samples)
-
-    # Застосування маски до лагів і до кроскореляції
+    # Застосовуємо маску
     lags = total_lags[mask]
-    corr = corr[mask]
+    corr = corr_full[mask]
 
-    # Пошук лагу, що відповідає максимуму кореляції
-    lag = lags[np.argmax(corr)]
+    # Якщо в дозволеному діапазоні немає лагів — повертаємо None
+    if len(lags) == 0:
+        return None, None, np.array([]), np.array([])
 
-    # Переведення лагу у секунди
+    # Знаходимо лаг із максимумом кореляції
+    max_index = np.argmax(corr)
+    lag = lags[max_index]
     time_delay = lag / fs
 
     return lag, time_delay, corr, lags
 
-def plot_cross_cor(sig1, sig2, fs, name1='', name2='', verbose=False, min_lag_s=None, max_lag_s=None):
+def plot_cross_cor(sig1, sig2, fs, name1='', name2='', verbose=False, allowed_lag_ranges_s=None):
     """
     Візуалізує кроскореляцію між двома сигналами та виводить значення затримки.
 
@@ -675,7 +724,7 @@ def plot_cross_cor(sig1, sig2, fs, name1='', name2='', verbose=False, min_lag_s=
     Returns:
         dt12 (float): затримка між сигналами у секундах.
     """
-    lag12, dt12, corr12, lags12 = cross_corr(sig1, sig2, fs, min_lag_s=min_lag_s, max_lag_s=max_lag_s)
+    lag12, dt12, corr12, lags12 = cross_corr(sig1, sig2, fs, allowed_lag_ranges_s=allowed_lag_ranges_s)
 
     #print(f"Затримка між {name1} та {name2}: {dt12:.4f} с")
 
@@ -696,7 +745,7 @@ def plot_cross_cor(sig1, sig2, fs, name1='', name2='', verbose=False, min_lag_s=
     # return lag12, dt12, corr12, lags12
     return dt12
 
-def cross_corr_crossval_from_df(df, fs, verbose=False, min_lag_s=None,  max_lag_s=None):
+def cross_corr_crossval_from_df(df, fs, verbose=False, allowed_lag_ranges_s=None):
     """
     Виконує попарну кроскореляцію між сигналами різних геофонів для X, Y, Z компонент.
 
@@ -722,21 +771,21 @@ def cross_corr_crossval_from_df(df, fs, verbose=False, min_lag_s=None,  max_lag_
             label1, label2 = k1, k2
             #print(label1)
             #print(label2)
-            delays_X[(k1, k2)] = plot_cross_cor(df[k1].values, df[k2].values, fs, label1, label2, verbose=verbose, min_lag_s=min_lag_s, max_lag_s=max_lag_s)
+            delays_X[(k1, k2)] = plot_cross_cor(df[k1].values, df[k2].values, fs, label1, label2, verbose=verbose, allowed_lag_ranges_s=allowed_lag_ranges_s)
 
     # --- Попарні порівняння Y-компонент
     for i in range(len(y_keys)):
         for j in range(len(y_keys)):
             k1, k2 = y_keys[i], y_keys[j]
             label1, label2 = k1, k2
-            delays_Y[(k1, k2)] = plot_cross_cor(df[k1].values, df[k2].values, fs, label1, label2, verbose=verbose, min_lag_s=min_lag_s, max_lag_s=max_lag_s)
+            delays_Y[(k1, k2)] = plot_cross_cor(df[k1].values, df[k2].values, fs, label1, label2, verbose=verbose, allowed_lag_ranges_s=allowed_lag_ranges_s)
 
     # --- Попарні порівняння Z-компонент
     for i in range(len(z_keys)):
         for j in range(len(z_keys)):
             k1, k2 = z_keys[i], z_keys[j]
             label1, label2 = k1, k2
-            delays_Z[(k1, k2)] = plot_cross_cor(df[k1].values, df[k2].values, fs, label1, label2, verbose=verbose, min_lag_s=min_lag_s, max_lag_s=max_lag_s)
+            delays_Z[(k1, k2)] = plot_cross_cor(df[k1].values, df[k2].values, fs, label1, label2, verbose=verbose, allowed_lag_ranges_s=allowed_lag_ranges_s)
 
     return delays_X, delays_Y, delays_Z
 
