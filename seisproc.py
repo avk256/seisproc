@@ -187,7 +187,7 @@ def winsorize_dataframe(df, limits=(0.01, 0.01), inclusive=(True, True)):
     winsorized_df.index = df.index  # зберігаємо індекси
     return winsorized_df
 
-def geo_spectr_with_colorbar(data_ser, fs, n_samples, start_date, name=''):
+def geo_spectr_with_colorbar(data_ser, fs, n_samples, start_date, name='', ax=None):
     """
     Обчислює та візуалізує спектрограму сигналу із кольоровою шкалою.
 
@@ -197,6 +197,7 @@ def geo_spectr_with_colorbar(data_ser, fs, n_samples, start_date, name=''):
         n_samples (int): кількість вибірок сигналу.
         start_date (str): початкова дата (використовується для індексації).
         name (str): назва сигналу (для заголовку графіка).
+        ax (matplotlib.axes.Axes or None): вісь для побудови. Якщо None — створюється нова фігура.
 
     Returns:
         signal (pd.Series): сигнал з часовим індексом.
@@ -205,53 +206,65 @@ def geo_spectr_with_colorbar(data_ser, fs, n_samples, start_date, name=''):
     time_index = pd.date_range(start_date, periods=n_samples, freq=f"{1000 // fs}ms")
     signal = pd.Series(data_ser.values, index=time_index)
 
-    # Отримуємо сам сигнал
     x = signal.values
-
     nperseg = min(int(fs * 2), len(x))
     if len(x) == nperseg:
-        nperseg = int(len(x)/6)
-    # nperseg = int(fs*2)
+        nperseg = int(len(x) / 6)
     noverlap = int(nperseg * 0.9)
-    # noverlap = min(nperseg * 0.5, int(nperseg * 0.9))
 
-    print('nperseg', nperseg)
-    print('noverlap', noverlap)
-
-    # Спектрограма через scipy
     f, t, Sxx = spectrogram(x, fs=fs, window='hann', nperseg=nperseg,
                             noverlap=noverlap, mode='psd')
+    Sxx_dB = 10 * np.log10(Sxx + 1e-12)
 
-    # Перетворення в dB
-    Sxx_dB = 10 * np.log10(Sxx + 1e-12)  # додавання малих значень, щоб уникнути log(0)
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(10, 6))
 
-    # Побудова
-    plt.figure(figsize=(10, 6))
-    im = plt.pcolormesh(t, f, Sxx_dB, shading='gouraud')
-    cbar = plt.colorbar(im)
+    im = ax.pcolormesh(t, f, Sxx_dB, shading='gouraud')
+    cbar = plt.colorbar(im, ax=ax)
     cbar.set_label('Амплітуда [dB]')
-    plt.ylabel('Частота [Hz]')
-    plt.xlabel('Час [s]')
-    plt.title('Спектр сигналу (FFT, dB) ' + name)
-    plt.ylim(0, fs / 2)
-    plt.tight_layout()
-    plt.show()
+    ax.set_ylabel('Частота [Hz]')
+    ax.set_xlabel('Час [s]')
+    ax.set_title('Спектр сигналу (FFT, dB) ' + name)
+    ax.set_ylim(0, fs / 2)
+
+    if ax is None:
+        plt.tight_layout()
+        plt.show()
 
     return signal
 
-def spectr_plot(df, fs=800):
+def spectr_plot(df, fs=800, n_cols=4, columns=['X1','Y11','Y12','Z1','X2','Y21','Y22','Z2','X3','Y31','Y32','Z3']):
     """
-    Будує спектрограми для всіх сигналів у датафреймі.
+    Будує спектрограми для вказаних сигналів у DataFrame.
 
     Parameters:
         df (pandas.DataFrame): набір сигналів у стовпцях.
         fs (float): частота дискретизації (Гц).
+        columns (list or None): список назв колонок для побудови. Якщо None — використовуються всі.
+        n_cols (int): кількість графіків у рядку.
     """
-    # Побудова графіків кожної ознаки
-    for column in df.columns:
-        # _, _ = geo_spectr(df[column], fs=600, n_samples=len(df), start_date='2025-05-21', name=column)
-        _ = geo_spectr_with_colorbar(df[column], fs=fs, n_samples=len(df), start_date='2025-05-21', name=column)
+    if columns is None:
+        columns = df.columns.tolist()
 
+    n = len(columns)
+    n_rows = (n + n_cols - 1) // n_cols
+
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(6 * n_cols, 4 * n_rows))
+    axes = axes.flatten() if n > 1 else [axes]
+
+    for i, col in enumerate(columns):
+        ax = axes[i]
+        # Припускаємо, що geo_spectr_with_colorbar приймає параметр ax
+        geo_spectr_with_colorbar(df[col], fs=fs, n_samples=len(df), start_date='2025-05-21', name=col, ax=ax)
+        # geo_spectr_with_colorbar(df[col], fs=fs, n_samples=len(df), start_date='2025-05-21', name=col)
+
+    # Сховати зайві осі
+    for j in range(i + 1, len(axes)):
+        axes[j].axis('off')
+
+    plt.tight_layout()
+    plt.show()
+    
 def compute_radial(V_X, V_Y1, V_Y2, theta_deg):
     """
     Обчислення радіальної компоненти сигналу.
