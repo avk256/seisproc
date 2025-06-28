@@ -270,7 +270,7 @@ def compute_radial(V_X, V_Y1, V_Y2, theta_deg):
     V_R = V_X * np.cos(theta_rad) + V_Y * np.sin(theta_rad)
     return V_R
 
-def psd_plot_df(df, n_cols=4, columns=['X1','Y11','Y12','Z1','X2','Y21','Y22','Z2','X3','Y31','Y32','Z3']):
+def psd_plot_df(df, fs, n_cols=4, columns=['X1','Y11','Y12','Z1','X2','Y21','Y22','Z2','X3','Y31','Y32','Z3']):
     """
     Будує графіки спектральної щільності потужності (PSD) для вказаних колонок DataFrame.
 
