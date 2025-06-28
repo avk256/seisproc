@@ -270,22 +270,36 @@ def compute_radial(V_X, V_Y1, V_Y2, theta_deg):
     V_R = V_X * np.cos(theta_rad) + V_Y * np.sin(theta_rad)
     return V_R
 
-def psd_plot(signal, fs, name):
+def psd_plot_df(df, n_cols=4, columns=['X1','Y11','Y12','Z1','X2','Y21','Y22','Z2','X3','Y31','Y32','Z3']):
     """
-    Будує графік спектральної щільності потужності (PSD) сигналу.
+    Будує графіки спектральної щільності потужності (PSD) для вказаних колонок DataFrame.
 
     Parameters:
-        signal (np.ndarray): вхідний сигнал.
+        df (pd.DataFrame): вхідний датафрейм із сигналами.
+        columns (list): список назв колонок, для яких побудувати PSD.
         fs (float): частота дискретизації (Гц).
-        name (str): назва сигналу (для заголовку).
     """
-    f, Pxx = welch(signal, fs=fs, nperseg=1024)
+    n = len(columns)
+    # n_cols = 2
+    n_rows = (n + n_cols - 1) // n_cols
 
-    plt.semilogy(f, Pxx)
-    plt.title("Спектральна щільність потужності (PSD) " + name)
-    plt.xlabel("Частота (Гц)")
-    plt.ylabel("Потужність / Гц")
-    plt.grid(True)
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(6 * n_cols, 4 * n_rows), sharex=True)
+    axes = axes.flatten()
+
+    for i, col in enumerate(columns):
+        signal = df[col].values
+        f, Pxx = welch(signal, fs=fs, nperseg=1024)
+        axes[i].semilogy(f, Pxx)
+        axes[i].set_title(f"PSD: {col}")
+        axes[i].set_xlabel("Частота (Гц)")
+        axes[i].set_ylabel("Потужність / Гц")
+        axes[i].grid(True)
+
+    # Сховати зайві підграфіки
+    for j in range(i+1, len(axes)):
+        axes[j].axis('off')
+
+    plt.tight_layout()
     plt.show()
 
 def extract_time_window(data, fs, time_range):
