@@ -41,7 +41,7 @@ def detrend_dataframe(df, type='linear'):
 
     return df_detrended
 
-def plot_time_signals(df, fs, n_cols=4, threshold=0.5, verbose=False, mode='plotly'):
+def plot_time_signals(df, fs, n_cols=4, columns=['X1','Y11','Y12','Z1','X2','Y21','Y22','Z2','X3','Y31','Y32','Z3'], threshold=0.5, verbose=False, mode='plotly'):
     """
     Візуалізує часові сигнали та виводить часи і значення всіх амплітуд, які перевищують поріг.
 
@@ -62,7 +62,7 @@ def plot_time_signals(df, fs, n_cols=4, threshold=0.5, verbose=False, mode='plot
         fig, axes = plt.subplots(n_rows, n_cols, figsize=(4.5 * n_cols, 3.5 * n_rows), sharex=True)
         axes = axes.flatten()
 
-        for i, col in enumerate(df.columns):
+        for i, col in enumerate(columns):
             signal = df[col].values
             above_thresh_idx = np.where(np.abs(signal) >= threshold)[0]
             peak_times = time[above_thresh_idx]
@@ -89,9 +89,9 @@ def plot_time_signals(df, fs, n_cols=4, threshold=0.5, verbose=False, mode='plot
 
     elif mode == 'plotly':
         fig = psp.make_subplots(rows=n_rows, cols=n_cols, shared_xaxes=True,
-                                subplot_titles=[f"Сигнал: {col}" for col in df.columns])
+                                subplot_titles=[f"Сигнал: {col}" for col in columns])
 
-        for idx, col in enumerate(df.columns):
+        for idx, col in enumerate(columns):
             row = idx // n_cols + 1
             col_pos = idx % n_cols + 1
             signal = df[col].values
