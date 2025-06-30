@@ -890,7 +890,7 @@ def cross_corr_crossval_from_df(df, fs, verbose=False, allowed_lag_ranges_s=None
 
     #return delays_X, delays_Y, delays_Z
 
-def plot_delay_matrix(delays, title):
+def plot_delay_matrix(delays, title, mode='matrix'):
     """
     Візуалізує затримки між парами сигналів у вигляді теплової карти (матриці затримок).
 
