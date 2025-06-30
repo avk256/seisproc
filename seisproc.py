@@ -914,16 +914,20 @@ def plot_delay_matrix(delays, title):
                 matrix[i, j] = delays[key]
             else:
                 matrix[i, j] = np.nan  # якщо даних немає
-
-    plt.figure(figsize=(8, 6))
+                
+                
+    fig, ax = plt.subplots()
     sns.heatmap(matrix, xticklabels=labels, yticklabels=labels, annot=True, cmap="coolwarm", center=0)
-    plt.title(title)
-    # plt.xlabel("Сигнал B")
-    # plt.ylabel("Сигнал A")
-    plt.show()
+
+    ax.set_title(title)
+  
+    ret = matrix
     
-    return matrix
+    if mode == 'fig':
     
+        ret = fig
+
+    return ret    
 
 def plot_coherence(sig1, sig2, fs, name1, name2):
     """
