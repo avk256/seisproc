@@ -929,6 +929,68 @@ def plot_delay_matrix(delays, title, mode='matrix'):
 
     return ret    
 
+def eval_delay_matrix(delays, labels=None):
+    """
+    Побудова матриці затримок (без plt.subplots), щоб працювати з subplot.
+    """
+    if labels is None:
+        labels = sorted(set(i for pair in delays for i in pair))
+        
+    matrix = np.full((len(labels), len(labels)), np.nan)
+
+    for i, row in enumerate(labels):
+        for j, col in enumerate(labels):
+            key = (row, col)
+            if key in delays:
+                matrix[i, j] = delays[key]
+
+    return matrix, labels
+
+
+def plot_multiple_delay_matrices(all_delays: dict, title_prefix="Матриця", cols=1, cmap="coolwarm"):
+    """
+    Візуалізує кілька матриць затримок на одній фігурі.
+
+    Parameters:
+        all_delays (dict): словник {назва: delays_dict}, де delays_dict — як у plot_delay_matrix
+        title_prefix (str): префікс до заголовку кожного subplot
+        cols (int): кількість стовпців у макеті subplot
+        cmap (str): кольорова мапа
+    """
+    n = len(all_delays)
+    rows = int(np.ceil(n / cols))
+
+    print(rows)
+
+    # Очистити будь-які попередні фігури
+    plt.close('all')
+
+    fig, axes = plt.subplots(rows, cols, figsize=(6 * cols, 5 * rows))
+    axes = np.array(axes).reshape(-1)  # Flatten to 1D for універсального доступу
+
+    for i, (name, delay_dict) in enumerate(all_delays.items()):
+        ax = axes[i]
+
+        matrix, labels = eval_delay_matrix(delay_dict)
+
+        print(matrix)
+
+        sns.heatmap(matrix, xticklabels=labels, yticklabels=labels,
+                    annot=True, cmap=cmap, center=0, ax=ax)
+        ax.set_title(f"{title_prefix}: {name}")
+        ax.set_xlabel("")
+        ax.set_ylabel("")
+        print(i)
+        # if i>=rows-1:
+        #     break
+
+    # Сховати порожні subplot-и, якщо n < rows * cols
+    # for j in range(i+1, rows*cols):
+    #     fig.delaxes(axes[j])
+
+    # fig.tight_layout()
+    return fig
+
 def plot_coherence(sig1, sig2, fs, name1, name2):
     """
     Обчислює та візуалізує когерентність (coherence) між двома сигналами у частотній області.
