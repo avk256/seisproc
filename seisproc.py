@@ -947,48 +947,49 @@ def eval_delay_matrix(delays, labels=None):
     return matrix, labels
 
 
-def plot_multiple_delay_matrices(all_delays: dict, title_prefix="Матриця", cols=1, cmap="coolwarm"):
+def plot_multiple_delay_matrices(all_delays: dict, title_prefix="Матриця", cols=2, cmap="coolwarm", fmt=".2f"):
     """
-    Візуалізує кілька матриць затримок на одній фігурі.
+    Візуалізує кілька матриць затримок на одній фігурі з використанням тільки matplotlib.
+    """
+    plt.close('all')  # уникнення дублювання
 
-    Parameters:
-        all_delays (dict): словник {назва: delays_dict}, де delays_dict — як у plot_delay_matrix
-        title_prefix (str): префікс до заголовку кожного subplot
-        cols (int): кількість стовпців у макеті subplot
-        cmap (str): кольорова мапа
-    """
     n = len(all_delays)
     rows = int(np.ceil(n / cols))
+    fig, axes = plt.subplots(rows, cols, figsize=(6 * cols, 5 * rows), squeeze=False)
+    axes = axes.flatten()
 
-    print(rows)
-
-    # Очистити будь-які попередні фігури
-    plt.close('all')
-
-    fig, axes = plt.subplots(rows, cols, figsize=(6 * cols, 5 * rows))
-    axes = np.array(axes).reshape(-1)  # Flatten to 1D for універсального доступу
+    vmin = min(np.nanmin(eval_delay_matrix(d)[0]) for d in all_delays.values())
+    vmax = max(np.nanmax(eval_delay_matrix(d)[0]) for d in all_delays.values())
 
     for i, (name, delay_dict) in enumerate(all_delays.items()):
+        matrix, labels = eval_delay_matrix(delay_dict)
         ax = axes[i]
 
-        matrix, labels = eval_delay_matrix(delay_dict)
+        im = ax.imshow(matrix, cmap=cmap, vmin=vmin, vmax=vmax)
 
-        print(matrix)
-
-        sns.heatmap(matrix, xticklabels=labels, yticklabels=labels,
-                    annot=True, cmap=cmap, center=0, ax=ax)
+        ax.set_xticks(np.arange(len(labels)))
+        ax.set_yticks(np.arange(len(labels)))
+        ax.set_xticklabels(labels)
+        ax.set_yticklabels(labels)
         ax.set_title(f"{title_prefix}: {name}")
+
+        # Підписи значень в клітинках
+        for y in range(matrix.shape[0]):
+            for x in range(matrix.shape[1]):
+                val = matrix[y, x]
+                if not np.isnan(val):
+                    color = "white" if abs(val) > (vmin + vmax) / 2 else "black"
+                    ax.text(x, y, format(val, fmt), ha="center", va="center", color=color, fontsize=9)
+
         ax.set_xlabel("")
         ax.set_ylabel("")
-        print(i)
-        # if i>=rows-1:
-        #     break
+    
+    # Видалити зайві subplot-и
+    for j in range(i + 1, len(axes)):
+        fig.delaxes(axes[j])
 
-    # Сховати порожні subplot-и, якщо n < rows * cols
-    # for j in range(i+1, rows*cols):
-    #     fig.delaxes(axes[j])
-
-    # fig.tight_layout()
+    # fig.colorbar(im, ax=axes.tolist(), shrink=0.6, label="Затримка (с)")
+    fig.tight_layout()
     return fig
 
 def plot_coherence(sig1, sig2, fs, name1, name2):
