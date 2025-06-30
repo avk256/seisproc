@@ -337,6 +337,8 @@ def psd_plot_df(df, fs, n_cols=4, columns=['X1','Y11','Y12','Z1','X2','Y21','Y22
 
     plt.tight_layout()
     plt.show()
+    
+    return fig
 
 def extract_time_window(data, fs, time_range):
     """
