@@ -144,6 +144,8 @@ def plot_time_signals(df, fs, n_cols=4, columns=['X1','Y11','Y12','Z1','X2','Y21
 
     else:
         raise ValueError("mode має бути 'matplotlib' або 'plotly'")
+    
+    return fig
 
     
 def butter_bandpass_filter(data, lowcut, highcut, fs, order=4):
