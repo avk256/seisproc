@@ -21,6 +21,25 @@ import plotly.graph_objs as go
 from statsmodels.nonparametric.smoothers_lowess import lowess
 from scipy.signal import savgol_filter
 
+
+def cut_dataframe_time_window(df, fs, start_time, end_time):
+    """
+    Вирізає сигнал у заданому часовому діапазоні з усіх колонок датафрейму.
+
+    Parameters:
+        df (pd.DataFrame): датафрейм із часовими рядами у кожній колонці
+        fs (float): частота дискретизації в Гц
+        start_time (float): початок інтервалу (в секундах)
+        end_time (float): кінець інтервалу (в секундах)
+
+    Returns:
+        pd.DataFrame: новий датафрейм із вирізаними сигналами
+    """
+    i_start = int(start_time * fs)
+    i_end = int(end_time * fs)
+    return df.iloc[i_start:i_end].reset_index(drop=True)
+
+
 def detrend_dataframe(df, type='linear'):
     """
     Застосовує scipy.signal.detrend до кожної колонки датафрейму.
