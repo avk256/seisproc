@@ -286,6 +286,8 @@ def spectr_plot(df, fs=800, n_cols=4, columns=['X1','Y11','Y12','Z1','X2','Y21',
     plt.tight_layout()
     plt.show()
     
+    return fig
+    
 def compute_radial(V_X, V_Y1, V_Y2, theta_deg):
     """
     Обчислення радіальної компоненти сигналу.
