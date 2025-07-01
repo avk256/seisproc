@@ -546,7 +546,7 @@ def vpf(Vr, Vz, fs, mode='matrix'):
     plt.legend()
     plt.tight_layout()
     
-    if mode == 'matrix'
+    if mode == 'matrix':
     plt.show()
     ret = imag_VPP
     
