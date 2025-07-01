@@ -446,12 +446,12 @@ def plot_hankel(Vr, Vz):
     Returns:
         fig (matplotlib.figure.Figure): об'єкт фігури для подальшого виводу
     """
-    fig, ax = plt.subplots(figsize=(3, 3))
+    fig, ax = plt.subplots(figsize=(1, 1))
 
     ax.plot(Vr, Vz, label="Rayleigh ellipse (scatter)")
-    ax.set_xlabel("Horizontal component Vr")
-    ax.set_ylabel("Vertical component Vz")
-    ax.set_title("Hankel Plot (Elliptical Particle Motion)")
+    ax.set_xlabel("Horizontal component Vr", fontsize=2)
+    ax.set_ylabel("Vertical component Vz", fontsize=2)
+    ax.set_title("Hankel Plot (Elliptical Particle Motion)", fontsize=2)
     ax.grid(True)
     ax.axis('equal')
     ax.legend()
