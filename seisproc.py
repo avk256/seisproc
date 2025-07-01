@@ -435,30 +435,37 @@ def plot_sta_lta(signal, fs, sta_win=0.2, lta_win=1.0, on_thresh=3.0, off_thresh
 
     return triggers
 
-def plot_hankel(Vr, Vz):
+def plot_hankel(Vr, Vz, scale=1.0):
     """
     Створює об'єкт matplotlib Figure з графіком Ганкеля (еліптична траєкторія).
-
+    
     Parameters:
         Vr (array-like): радіальна компонента.
         Vz (array-like): вертикальна компонента.
-
+        scale (float): коефіцієнт масштабування розмірів рисунка і шрифтів (1.0 = звичайний).
+    
     Returns:
-        fig (matplotlib.figure.Figure): об'єкт фігури для подальшого виводу
+        fig (matplotlib.figure.Figure): фігура з побудованим графіком.
     """
-    fig, ax = plt.subplots(figsize=(1, 1))
+    base_size = 6
+    fig_size = (base_size * scale, base_size * scale)
+    font_size = 10 * scale
 
-    ax.plot(Vr, Vz, label="Rayleigh ellipse (scatter)")
-    ax.set_xlabel("Horizontal component Vr", fontsize=2)
-    ax.set_ylabel("Vertical component Vz", fontsize=2)
-    ax.set_title("Hankel Plot (Elliptical Particle Motion)", fontsize=2)
+    fig, ax = plt.subplots(figsize=fig_size)
+
+    ax.plot(Vr, Vz, label="Rayleigh ellipse (scatter)", linewidth=1 * scale)
+
+    ax.set_xlabel("Horizontal component Vr", fontsize=font_size)
+    ax.set_ylabel("Vertical component Vz", fontsize=font_size)
+    ax.set_title("Hankel Plot (Elliptical Particle Motion)", fontsize=font_size + 2)
     ax.grid(True)
     ax.axis('equal')
-    ax.legend()
-    fig.tight_layout()
+    ax.tick_params(labelsize=font_size * 0.9)
+    ax.legend(fontsize=font_size)
 
+    fig.tight_layout()
     return fig
-    
+
 def plot_hankel_3d(Vr, Vz, fs, title='3D Hankel Plot'):
     """
     Побудова 3D графіку Ганкеля (еліптична траєкторія частинки)
