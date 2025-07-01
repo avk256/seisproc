@@ -435,7 +435,7 @@ def plot_sta_lta(signal, fs, sta_win=0.2, lta_win=1.0, on_thresh=3.0, off_thresh
 
     return triggers
 
-def plot_hankel(Vr, Vz, scale=1.0):
+def plot_hankel(Vr, Vz, scale=0.3):
     """
     Створює об'єкт matplotlib Figure з графіком Ганкеля (еліптична траєкторія).
     
