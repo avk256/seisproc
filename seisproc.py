@@ -446,7 +446,7 @@ def plot_hankel(Vr, Vz):
     Returns:
         fig (matplotlib.figure.Figure): об'єкт фігури для подальшого виводу
     """
-    fig, ax = plt.subplots(figsize=(6, 6))
+    fig, ax = plt.subplots(figsize=(3, 3))
 
     ax.plot(Vr, Vz, label="Rayleigh ellipse (scatter)")
     ax.set_xlabel("Horizontal component Vr")
