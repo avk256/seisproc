@@ -437,25 +437,28 @@ def plot_sta_lta(signal, fs, sta_win=0.2, lta_win=1.0, on_thresh=3.0, off_thresh
 
 def plot_hankel(Vr, Vz):
     """
-    Будує 2D графік Ганкеля (еліптична траєкторія частинки) за радіальною та вертикальною компонентами.
+    Створює об'єкт matplotlib Figure з графіком Ганкеля (еліптична траєкторія).
 
     Parameters:
         Vr (array-like): радіальна компонента.
         Vz (array-like): вертикальна компонента.
+
+    Returns:
+        fig (matplotlib.figure.Figure): об'єкт фігури для подальшого виводу
     """
-    plt.figure(figsize=(6, 6))
-    # plt.scatter(Vr, Vz, s=1, alpha=0.7, label="Rayleigh ellipse (scatter)")
-    plt.plot(Vr, Vz, label="Rayleigh ellipse (scatter)")
-    plt.xlabel("Horizontal component Vx")
-    plt.ylabel("Vertical component Vz")
-    plt.title("Hankel Plot (Elliptical Particle Motion) — Scatter")
-    plt.grid(True)
-    plt.axis('equal')
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
+    fig, ax = plt.subplots(figsize=(6, 6))
 
+    ax.plot(Vr, Vz, label="Rayleigh ellipse (scatter)")
+    ax.set_xlabel("Horizontal component Vr")
+    ax.set_ylabel("Vertical component Vz")
+    ax.set_title("Hankel Plot (Elliptical Particle Motion)")
+    ax.grid(True)
+    ax.axis('equal')
+    ax.legend()
+    fig.tight_layout()
 
+    return fig
+    
 def plot_hankel_3d(Vr, Vz, fs, title='3D Hankel Plot'):
     """
     Побудова 3D графіку Ганкеля (еліптична траєкторія частинки)
