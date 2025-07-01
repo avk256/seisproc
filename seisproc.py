@@ -512,7 +512,7 @@ def plot_hankel_3d(Vr, Vz, fs, title='3D Hankel Plot'):
 
     fig.show()
 
-def vpf(Vr, Vz, fs):
+def vpf(Vr, Vz, fs, mode='matrix'):
     """
     Виконує векторну поляризаційну фільтрацію (Vector Polarization Filtering) на основі Гілберт-перетворення.
 
@@ -535,6 +535,7 @@ def vpf(Vr, Vz, fs):
     VPP = Hr.conj() * Hz
     imag_VPP = np.imag(VPP)
 
+    fig, ax = plt.subplots(figsize=(12,6))
     # Візуалізація
     plt.figure(figsize=(12, 6))
     plt.plot(time, imag_VPP, label='Imaginary part of PHV (VPF output)')
@@ -544,9 +545,18 @@ def vpf(Vr, Vz, fs):
     plt.grid(True)
     plt.legend()
     plt.tight_layout()
+    
+    if mode == 'matrix'
     plt.show()
+    ret = imag_VPP
+    
+    if mode == 'fig':
+    
+        ret = fig
 
-    return imag_VPP
+    return ret
+
+
 
 
 import numpy as np
