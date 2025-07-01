@@ -535,16 +535,17 @@ def vpf(Vr, Vz, fs, mode='matrix'):
     VPP = Hr.conj() * Hz
     imag_VPP = np.imag(VPP)
 
-    fig, ax = plt.subplots(figsize=(12,6))
+    
+    fig, ax = plt.subplots(figsize=(12, 6))
     # Візуалізація
-    plt.figure(figsize=(12, 6))
-    plt.plot(time, imag_VPP, label='Imaginary part of PHV (VPF output)')
-    plt.title("Vector Polarization Filtering (VPF) Output")
-    plt.xlabel("Time [s]")
-    plt.ylabel("Imag(PHV)")
-    plt.grid(True)
-    plt.legend()
-    plt.tight_layout()
+    # ax.figure(figsize=(12, 6))
+    ax.plot(time, imag_VPP, label='Imaginary part of PHV (VPF output)')
+    # ax.set_title("Vector Polarization Filtering (VPF) Output")
+    ax.set_xlabel("Time [s]")
+    ax.set_ylabel("Imag(PHV)")
+    ax.grid(True)
+    ax.legend()
+    fig.tight_layout()
     
     if mode == 'matrix':
         plt.show()
@@ -556,10 +557,6 @@ def vpf(Vr, Vz, fs, mode='matrix'):
 
     return ret
 
-
-
-
-import numpy as np
 
 
 def compute_multiple_snr_sta_lta(
