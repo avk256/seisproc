@@ -368,7 +368,7 @@ def psd_plot_df(df, fs, n_cols=4, columns=['X1','Y11','Y12','Z1','X2','Y21','Y22
             title_text="Спектральна щільність потужності (PSD)",
             showlegend=False
         )
-        fig.update_yaxes(type="log", title_text="Потужність / Гц")
+        fig.update_yaxes(type="log", title_text="Потужність / Гц", tickformat=".0e")
         fig.update_xaxes(title_text="Частота (Гц)")
         return fig
 
