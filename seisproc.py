@@ -347,7 +347,7 @@ def psd_plot_df(df, fs, n_cols=4, columns=['X1','Y11','Y12','Z1','X2','Y21','Y22
         return fig
 
     elif mode == 'plotly':
-        fig = make_subplots(rows=n_rows, cols=n_cols,
+        fig = psp.make_subplots(rows=n_rows, cols=n_cols,
                             subplot_titles=[f"PSD: {col}" for col in columns],
                             shared_xaxes=True)
 
