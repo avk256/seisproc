@@ -60,7 +60,7 @@ def detrend_dataframe(df, type='linear'):
 
     return df_detrended
 
-def plot_time_signals(df, fs, n_cols=4, columns=['X1','Y11','Y12','Z1','X2','Y21','Y22','Z2','X3','Y31','Y32','Z3'], threshold=0.5, verbose=False, mode='plotly'):
+def plot_time_signals(df, fs, n_cols=4, columns=[], threshold=0.5, verbose=False, mode='plotly'):
     """
     Візуалізує часові сигнали та виводить часи і значення всіх амплітуд, які перевищують поріг.
 
@@ -378,7 +378,7 @@ def psd_plot_df(df, fs, n_cols=4, columns=['X1','Y11','Y12','Z1','X2','Y21','Y22
             title_text="Спектральна щільність потужності (PSD)",
             showlegend=False
         )
-        fig.update_yaxes(type="log", title_text="Потужність / Гц", tickformat=".0e")
+        fig.update_yaxes(type="log", title_text="Потужність / Гц", tickformat=".2e")
         fig.update_xaxes(title_text="Частота (Гц)")
         return fig
 
@@ -1158,7 +1158,7 @@ def plot_coherence(sig1, sig2, fs, name1, name2, mode='matplotlib', scale=1.0):
             margin=dict(t=40, b=40, l=60, r=40),
         )
         
-        fig.update_yaxes(type="log", title_text="Когерентність", tickformat=".0e")
+        fig.update_yaxes(type="log", title_text="Когерентність", tickformat=".2f")
         
         
         
