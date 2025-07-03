@@ -1084,12 +1084,9 @@ def plot_multiple_delay_matrices(all_delays: dict, title_prefix="Матриця"
     fig.tight_layout()
     return fig
 
-def plot_coherence(sig1, sig2, fs, name1, name2):
+def plot_coherence(sig1, sig2, fs, name1, name2, mode='matplotlib', scale=1.0):
     """
-    Обчислює та візуалізує когерентність (coherence) між двома сигналами у частотній області.
-
-    Когерентність — це нормалізований показник схожості двох сигналів при різних частотах.
-    Значення лежать у межах [0, 1], де 1 означає повну залежність на певній частоті.
+    Обчислює та візуалізує когерентність між двома сигналами у частотній області.
 
     Parameters:
         sig1 (np.ndarray): перший сигнал.
@@ -1097,20 +1094,55 @@ def plot_coherence(sig1, sig2, fs, name1, name2):
         fs (float): частота дискретизації (Гц).
         name1 (str): назва першого сигналу (для підпису графіка).
         name2 (str): назва другого сигналу.
+        mode (str): 'matplotlib' або 'plotly' — режим побудови.
+        scale (float): масштаб фігури (тільки для matplotlib).
 
     Returns:
-        None. Виводить графік когерентності.
+        fig: matplotlib.figure.Figure або plotly.graph_objects.Figure
     """
-    # Обчислення когерентності через метод Уелча
+    # Обчислення когерентності
     f, Cxy = coherence(sig1, sig2, fs=fs, nperseg=1024)
 
-    # Побудова графіка в логарифмічному масштабі по осі Y
-    plt.semilogy(f, Cxy)
-    plt.xlabel('Частота (Гц)')
-    plt.ylabel('Когерентність')
-    plt.title(f'Когерентність між {name1} та {name2}')
-    plt.grid(True)
-    plt.show()
+    if mode == 'matplotlib':
+        base_size = 6
+        fig_size = (base_size * scale * 1.5, base_size * scale)
+        font_size = 10 * scale
+
+        fig, ax = plt.subplots(figsize=fig_size)
+        ax.semilogy(f, Cxy, color='blue', linewidth=1.5 * scale)
+        ax.set_xlabel('Частота (Гц)', fontsize=font_size)
+        ax.set_ylabel('Когерентність', fontsize=font_size)
+        ax.set_title(f'Когерентність між {name1} та {name2}', fontsize=font_size + 2)
+        ax.grid(True)
+        ax.tick_params(labelsize=font_size * 0.9)
+        fig.tight_layout()
+        return fig
+
+    elif mode == 'plotly':
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=f,
+            y=Cxy,
+            mode='lines',
+            line=dict(color='blue'),
+            name='Coherence'
+        ))
+
+        fig.update_layout(
+            title=f'Когерентність між {name1} та {name2}',
+            xaxis_title='Частота (Гц)',
+            yaxis_title='Когерентність',
+            yaxis_type='log',
+            height=400,
+            width=800,
+            margin=dict(t=40, b=40, l=60, r=40),
+        )
+        
+        fig.update_yaxes(type="log", title_text="Когерентність", tickformat=".0e")
+        
+        
+        
+        return fig
     
 def coherent_subtraction_aligned_with_mask(sig_primary, 
                                            sig_reference, fs=600,
