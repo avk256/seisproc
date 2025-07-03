@@ -306,39 +306,74 @@ def compute_radial(V_X, V_Y1, V_Y2, theta_deg):
     V_R = V_X * np.cos(theta_rad) + V_Y * np.sin(theta_rad)
     return V_R
 
-def psd_plot_df(df, fs, n_cols=4, columns=['X1','Y11','Y12','Z1','X2','Y21','Y22','Z2','X3','Y31','Y32','Z3']):
+def psd_plot_df(df, fs, n_cols=4, columns=['X1','Y11','Y12','Z1','X2','Y21','Y22','Z2','X3','Y31','Y32','Z3'], mode='matplotlib'):
     """
-    Будує графіки спектральної щільності потужності (PSD) для вказаних колонок DataFrame.
+    Візуалізує графіки спектральної щільності потужності (PSD) для вказаних колонок DataFrame
+    з використанням matplotlib або plotly.
 
     Parameters:
         df (pd.DataFrame): вхідний датафрейм із сигналами.
-        columns (list): список назв колонок, для яких побудувати PSD.
         fs (float): частота дискретизації (Гц).
+        n_cols (int): кількість колонок у макеті subplot.
+        columns (list): список назв колонок (за замовчуванням усі, що починаються з X/Y/Z).
+        backend (str): 'matplotlib' або 'plotly'.
+
+    Returns:
+        fig: matplotlib.figure.Figure або plotly.graph_objects.Figure
     """
+    if columns is None:
+        columns = [col for col in df.columns if col.startswith(('X', 'Y', 'Z'))]
+
     n = len(columns)
-    # n_cols = 2
     n_rows = (n + n_cols - 1) // n_cols
 
-    fig, axes = plt.subplots(n_rows, n_cols, figsize=(6 * n_cols, 4 * n_rows), sharex=True)
-    axes = axes.flatten()
+    if mode == 'matplotlib':
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=(6 * n_cols, 4 * n_rows), sharex=True)
+        axes = axes.flatten()
 
-    for i, col in enumerate(columns):
-        signal = df[col].values
-        f, Pxx = welch(signal, fs=fs, nperseg=1024)
-        axes[i].semilogy(f, Pxx)
-        axes[i].set_title(f"PSD: {col}")
-        axes[i].set_xlabel("Частота (Гц)")
-        axes[i].set_ylabel("Потужність / Гц")
-        axes[i].grid(True)
+        for i, col in enumerate(columns):
+            signal = df[col].values
+            f, Pxx = welch(signal, fs=fs, nperseg=1024)
+            axes[i].semilogy(f, Pxx)
+            axes[i].set_title(f"PSD: {col}")
+            axes[i].set_xlabel("Частота (Гц)")
+            axes[i].set_ylabel("Потужність / Гц")
+            axes[i].grid(True)
 
-    # Сховати зайві підграфіки
-    for j in range(i+1, len(axes)):
-        axes[j].axis('off')
+        for j in range(i + 1, len(axes)):
+            axes[j].axis('off')
 
-    plt.tight_layout()
-    plt.show()
-    
-    return fig
+        fig.tight_layout()
+        return fig
+
+    elif mode == 'plotly':
+        fig = make_subplots(rows=n_rows, cols=n_cols,
+                            subplot_titles=[f"PSD: {col}" for col in columns],
+                            shared_xaxes=True)
+
+        for idx, col in enumerate(columns):
+            row = idx // n_cols + 1
+            col_pos = idx % n_cols + 1
+            signal = df[col].values
+            f, Pxx = welch(signal, fs=fs, nperseg=1024)
+
+            fig.add_trace(
+                go.Scatter(x=f, y=Pxx, mode='lines', name=col),
+                row=row, col=col_pos
+            )
+
+        fig.update_layout(
+            height=300 * n_rows,
+            width=400 * n_cols,
+            title_text="Спектральна щільність потужності (PSD)",
+            showlegend=False
+        )
+        fig.update_yaxes(type="log", title_text="Потужність / Гц")
+        fig.update_xaxes(title_text="Частота (Гц)")
+        return fig
+
+    else:
+        raise ValueError("backend повинен бути 'matplotlib' або 'plotly'")
 
 def extract_time_window(data, fs, time_range):
     """
