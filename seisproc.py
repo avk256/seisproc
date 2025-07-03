@@ -365,7 +365,7 @@ def psd_plot_df(df, fs, n_cols=4, columns=['X1','Y11','Y12','Z1','X2','Y21','Y22
             fig.update_xaxes(
             title_text="Частота (Гц)",
             showticklabels=True,
-            row=row, col=col_pos
+            row=row, col=col_pos)
 
         fig.update_layout(
             height=300 * n_rows,
