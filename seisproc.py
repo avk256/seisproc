@@ -587,51 +587,71 @@ def plot_hankel_3d(Vr, Vz, fs, title='3D Hankel Plot'):
 
     fig.show()
 
-def vpf(Vr, Vz, fs, mode='matrix'):
+def vpf(Vr, Vz, fs, mode='matrix', scale=1.0):
     """
-    Виконує векторну поляризаційну фільтрацію (Vector Polarization Filtering) на основі Гілберт-перетворення.
+    Виконує векторну поляризаційну фільтрацію (VPF) та візуалізує уявну частину комплексної потужності.
 
     Parameters:
         Vr (np.ndarray): радіальна компонента сигналу.
         Vz (np.ndarray): вертикальна компонента сигналу.
         fs (float): частота дискретизації (Гц).
+        mode (str): 'matrix' — повертає масив; 'fig' — повертає matplotlib.figure; 'plotly' — повертає plotly.graph_objects.Figure.
+        scale (float): масштаб (тільки для matplotlib), за замовчуванням 1.0.
 
     Returns:
-        imag_VPP (np.ndarray): уявна частина комплексної потужності (ознака еліптичної поляризації).
+        або: np.ndarray (imag_VPP), або matplotlib.figure.Figure, або plotly.graph_objects.Figure
     """
     n_samples = Vr.shape[0]
     time = np.arange(n_samples) / fs
 
-    # Обчислення аналітичних сигналів через Гілберт-перетворення
+    # Обчислення аналітичних сигналів
     Hr = hilbert(Vr)
     Hz = hilbert(Vz)
 
-    # Комплексна потужність (vector polarization power)
     VPP = Hr.conj() * Hz
     imag_VPP = np.imag(VPP)
 
-    
-    fig, ax = plt.subplots(figsize=(12, 6))
-    # Візуалізація
-    # ax.figure(figsize=(12, 6))
-    ax.plot(time, imag_VPP, label='Imaginary part of PHV (VPF output)')
-    # ax.set_title("Vector Polarization Filtering (VPF) Output")
-    ax.set_xlabel("Time [s]")
-    ax.set_ylabel("Imag(PHV)")
-    ax.grid(True)
-    ax.legend()
-    fig.tight_layout()
-    
     if mode == 'matrix':
-        plt.show()
-        ret = imag_VPP
-    
-    if mode == 'fig':
-    
-        ret = fig
+        return imag_VPP
 
-    return ret
+    elif mode == 'fig':
+        base_size = 6
+        fig_size = (base_size * scale * 2, base_size * scale)
+        font_size = 10 * scale
 
+        fig, ax = plt.subplots(figsize=fig_size)
+        ax.plot(time, imag_VPP, label='Imaginary part of PHV (VPF output)', linewidth=1.2 * scale)
+        ax.set_xlabel("Time [s]", fontsize=font_size)
+        ax.set_ylabel("Imag(PHV)", fontsize=font_size)
+        ax.grid(True)
+        ax.legend(fontsize=font_size)
+        ax.tick_params(labelsize=font_size * 0.9)
+        ax.set_title("Vector Polarization Filtering (VPF) Output", fontsize=font_size + 2)
+        fig.tight_layout()
+        return fig
+
+    elif mode == 'plotly':
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=time,
+            y=imag_VPP,
+            mode='lines',
+            name='Imaginary part of PHV',
+            line=dict(color='blue')
+        ))
+
+        fig.update_layout(
+            title="Vector Polarization Filtering (VPF) Output",
+            xaxis_title="Time [s]",
+            yaxis_title="Imag(PHV)",
+            height=400,
+            width=900,
+            margin=dict(t=40, b=40, l=60, r=40),
+        )
+        return fig
+
+    else:
+        raise ValueError("mode має бути 'matrix', 'fig', або 'plotly'")
 
 
 def compute_multiple_snr_sta_lta(
