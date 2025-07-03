@@ -480,36 +480,66 @@ def plot_sta_lta(signal, fs, sta_win=0.2, lta_win=1.0, on_thresh=3.0, off_thresh
 
     return triggers
 
-def plot_hankel(Vr, Vz, scale=0.3):
+def plot_hankel(Vr, Vz, scale=1.0, mode='matplotlib'):
     """
-    Створює об'єкт matplotlib Figure з графіком Ганкеля (еліптична траєкторія).
-    
+    Створює графік Ганкеля (еліптична траєкторія частинки) у matplotlib або plotly.
+
     Parameters:
-        Vr (array-like): радіальна компонента.
-        Vz (array-like): вертикальна компонента.
-        scale (float): коефіцієнт масштабування розмірів рисунка і шрифтів (1.0 = звичайний).
-    
+        Vr (array-like): радіальна компонента сигналу.
+        Vz (array-like): вертикальна компонента сигналу.
+        scale (float): масштаб (1.0 = стандартний) — впливає на розмір графіка та шрифтів.
+        mode (str): 'matplotlib' або 'plotly' — вибір бібліотеки візуалізації.
+
     Returns:
-        fig (matplotlib.figure.Figure): фігура з побудованим графіком.
+        fig: об'єкт Figure matplotlib або plotly.
     """
-    base_size = 6
-    fig_size = (base_size * scale, base_size * scale)
-    font_size = 10 * scale
+    Vr = np.asarray(Vr)
+    Vz = np.asarray(Vz)
 
-    fig, ax = plt.subplots(figsize=fig_size)
+    if mode == 'matplotlib':
+        base_size = 6
+        fig_size = (base_size * scale, base_size * scale)
+        font_size = 10 * scale
 
-    ax.plot(Vr, Vz, label="Rayleigh ellipse (scatter)", linewidth=1 * scale)
+        fig, ax = plt.subplots(figsize=fig_size)
+        ax.plot(Vr, Vz, label="Rayleigh ellipse", linewidth=1.5 * scale)
+        ax.set_xlabel("Horizontal component Vr", fontsize=font_size)
+        ax.set_ylabel("Vertical component Vz", fontsize=font_size)
+        ax.set_title("Hankel Plot (Elliptical Particle Motion)", fontsize=font_size + 2)
+        ax.grid(True)
+        ax.axis('equal')
+        ax.tick_params(labelsize=font_size * 0.9)
+        ax.legend(fontsize=font_size)
+        fig.tight_layout()
+        return fig
 
-    ax.set_xlabel("Horizontal component Vr", fontsize=font_size)
-    ax.set_ylabel("Vertical component Vz", fontsize=font_size)
-    ax.set_title("Hankel Plot (Elliptical Particle Motion)", fontsize=font_size + 2)
-    ax.grid(True)
-    ax.axis('equal')
-    ax.tick_params(labelsize=font_size * 0.9)
-    ax.legend(fontsize=font_size)
+    elif mode == 'plotly':
+        fig_width = 500 * scale
+        fig_height = 500 * scale
 
-    fig.tight_layout()
-    return fig
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=Vr, y=Vz,
+            mode='lines',
+            name='Rayleigh ellipse',
+            line=dict(width=2)
+        ))
+
+        fig.update_layout(
+            width=fig_width,
+            height=fig_height,
+            title="Hankel Plot (Elliptical Particle Motion)",
+            xaxis_title="Horizontal component Vr",
+            yaxis_title="Vertical component Vz",
+            xaxis=dict(scaleanchor="y", scaleratio=1),
+            yaxis=dict(scaleanchor="x", scaleratio=1),
+            margin=dict(l=40, r=40, t=40, b=40)
+        )
+
+        return fig
+
+    else:
+        raise ValueError("mode має бути 'matplotlib' або 'plotly'")
 
 def plot_hankel_3d(Vr, Vz, fs, title='3D Hankel Plot'):
     """
