@@ -108,7 +108,7 @@ def plot_time_signals(df, fs, n_cols=4, columns=['X1','Y11','Y12','Z1','X2','Y21
 
     elif mode == 'plotly':
         fig = psp.make_subplots(rows=n_rows, cols=n_cols, shared_xaxes=True,
-                                subplot_titles=[f"Сигнал: {col}" for col in columns])
+                                subplot_titles=[f"Сигнал: {col}" for col in columns], vertical_spacing=0.08)
 
         for idx, col in enumerate(columns):
             row = idx // n_cols + 1
@@ -128,6 +128,11 @@ def plot_time_signals(df, fs, n_cols=4, columns=['X1','Y11','Y12','Z1','X2','Y21
             fig.add_trace(go.Scatter(x=peak_times, y=peak_values, mode='markers',
                                      marker=dict(color='red', size=6), name='Піки > поріг',
                                      showlegend=False), row=row, col=col_pos)
+            
+            fig.update_xaxes(
+            title_text="Час [с]",
+            showticklabels=True,
+            row=row, col=col_pos)
 
         fig.update_layout(
             height=400 * n_rows,
