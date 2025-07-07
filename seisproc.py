@@ -20,7 +20,8 @@ import plotly.subplots as psp
 import plotly.graph_objs as go
 from statsmodels.nonparametric.smoothers_lowess import lowess
 from scipy.signal import savgol_filter
-
+from collections import defaultdict
+import plotly.express as px
 
 def cut_dataframe_time_window(df, fs, start_time, end_time):
     """
@@ -134,12 +135,24 @@ def plot_time_signals(df, fs, n_cols=4, columns=[], threshold=0.5, verbose=False
             showticklabels=True,
             row=row, col=col_pos)
 
-        fig.update_layout(
-            height=300 * n_rows,
-            width=400 * n_cols,
-            title_text="Часові сигнали з позначенням піків",
-            showlegend=False
-        )
+        if n_cols>1:
+            fig.update_layout(
+                height=400 * n_rows,
+                width=400 * n_cols,
+                title_text="Часові сигнали з позначенням піків",
+                showlegend=False
+            )
+            
+        
+        
+        
+        if n_cols==1:
+            fig.update_layout(
+                height=1600 * n_rows,
+                width=1200 * n_cols,
+                title_text="Часові сигнали з позначенням піків",
+                showlegend=False
+            )
 
         fig.update_xaxes(title_text="Час [с]")
         fig.update_yaxes(title_text="Амплітуда")
@@ -147,8 +160,44 @@ def plot_time_signals(df, fs, n_cols=4, columns=[], threshold=0.5, verbose=False
         # Відобразити повний тулбар Plotly
         fig.show(config=dict(displayModeBar=True, responsive=True))
 
+    elif mode == 'plotly_one':
+        # Групування за першим символом назви
+        groups = defaultdict(list)
+        for col in columns:
+            key = col[0]  # перший символ
+            groups[key].append(col)
+
+        fig = go.Figure()
+        color_palette = px.colors.qualitative.Set1
+        color_idx = 0
+
+        for key, group_cols in sorted(groups.items()):
+            for col in group_cols:
+                signal = df[col].values
+                fig.add_trace(go.Scatter(
+                    x=time,
+                    y=signal,
+                    mode='lines',
+                    name=f"{col}",
+                    line=dict(width=1),
+                    legendgroup=key,
+                    showlegend=True
+                ))
+            color_idx += 1
+
+        fig.update_layout(
+            title="Сигнали, згруповані за першою літерою назви вісі геофона",
+            xaxis_title="Час [с]",
+            yaxis_title="Амплітуда",
+            height=500 + 40 * len(groups),
+            width=1200,
+            template="plotly_white"
+        )
+        fig.show(config=dict(displayModeBar=True, responsive=True))
+        return fig
+
     else:
-        raise ValueError("mode має бути 'matplotlib' або 'plotly'")
+        raise ValueError("mode має бути 'matplotlib', 'plotly' або 'plotly_one'")
     
     return fig
 
