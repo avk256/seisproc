@@ -171,19 +171,19 @@ def plot_time_signals(df, fs, n_cols=4, columns=[], threshold=0.5, verbose=False
         color_palette = px.colors.qualitative.Set1
         color_idx = 0
 
-        for key, group_cols in sorted(groups.items()):
-            for col in group_cols:
-                signal = df[col].values
-                fig.add_trace(go.Scatter(
-                    x=time,
-                    y=signal,
-                    mode='lines',
-                    name=f"{col}",
-                    line=dict(width=1),
-                    legendgroup=key,
-                    showlegend=True
-                ))
-            color_idx += 1
+        # for key, group_cols in sorted(groups.items()):
+        for col in columns:
+            signal = df[col].values
+            fig.add_trace(go.Scatter(
+                x=time,
+                y=signal,
+                mode='lines',
+                name=f"{col}",
+                line=dict(width=1),
+                # legendgroup=key,
+                showlegend=True
+            ))
+        color_idx += 1
 
         fig.update_layout(
             title="Сигнали, згруповані за першою літерою назви вісі геофона",
@@ -262,7 +262,54 @@ def winsorize_dataframe(df, limits=(0.01, 0.01), inclusive=(True, True)):
     winsorized_df.index = df.index  # зберігаємо індекси
     return winsorized_df
 
-def geo_spectr_with_colorbar(data_ser, fs, n_samples, start_date, name='', ax=None):
+# def geo_spectr_with_colorbar(data_ser, fs, n_samples, start_date, name='', ax=None):
+#     """
+#     Обчислює та візуалізує спектрограму сигналу із кольоровою шкалою.
+
+#     Parameters:
+#         data_ser (pd.Series): сигнал.
+#         fs (float): частота дискретизації (Гц).
+#         n_samples (int): кількість вибірок сигналу.
+#         start_date (str): початкова дата (використовується для індексації).
+#         name (str): назва сигналу (для заголовку графіка).
+#         ax (matplotlib.axes.Axes or None): вісь для побудови. Якщо None — створюється нова фігура.
+
+#     Returns:
+#         signal (pd.Series): сигнал з часовим індексом.
+#     """
+#     # Формуємо часовий індекс
+#     time_index = pd.date_range(start_date, periods=n_samples, freq=f"{1000 // fs}ms")
+#     signal = pd.Series(data_ser.values, index=time_index)
+
+#     x = signal.values
+#     nperseg = min(int(fs * 2), len(x))
+#     if len(x) == nperseg:
+#         nperseg = int(len(x) / 6)
+#     noverlap = int(nperseg * 0.9)
+
+#     f, t, Sxx = spectrogram(x, fs=fs, window='hann', nperseg=nperseg,
+#                             noverlap=noverlap, mode='psd')
+#     Sxx_dB = 10 * np.log10(Sxx + 1e-12)
+
+#     if ax is None:
+#         fig, ax = plt.subplots(figsize=(10, 6))
+
+#     im = ax.pcolormesh(t, f, Sxx_dB, shading='gouraud')
+#     cbar = plt.colorbar(im, ax=ax)
+#     cbar.set_label('Амплітуда [dB]')
+#     ax.set_ylabel('Частота [Hz]')
+#     ax.set_xlabel('Час [s]')
+#     ax.set_title('Спектр сигналу (FFT, dB) ' + name)
+#     ax.set_ylim(0, fs / 2)
+
+#     if ax is None:
+#         plt.tight_layout()
+#         plt.show()
+
+#     return signal
+
+def geo_spectr_with_colorbar(data_ser, fs, n_samples, start_date, name='',
+                             ax=None, seg_len_s=None, overlap_s=None):
     """
     Обчислює та візуалізує спектрограму сигналу із кольоровою шкалою.
 
@@ -273,22 +320,42 @@ def geo_spectr_with_colorbar(data_ser, fs, n_samples, start_date, name='', ax=No
         start_date (str): початкова дата (використовується для індексації).
         name (str): назва сигналу (для заголовку графіка).
         ax (matplotlib.axes.Axes or None): вісь для побудови. Якщо None — створюється нова фігура.
+        seg_len_s (float or None): довжина сегмента в секундах для спектрограми (nperseg = seg_len_s * fs).
+        overlap_s (float or None): перекриття в секундах (noverlap = overlap_s * fs).
 
     Returns:
         signal (pd.Series): сигнал з часовим індексом.
     """
     # Формуємо часовий індекс
-    time_index = pd.date_range(start_date, periods=n_samples, freq=f"{1000 // fs}ms")
+    time_index = pd.date_range(start=start_date, periods=n_samples, freq=f"{1000 // fs}ms")
     signal = pd.Series(data_ser.values, index=time_index)
 
     x = signal.values
-    nperseg = min(int(fs * 2), len(x))
-    if len(x) == nperseg:
-        nperseg = int(len(x) / 6)
-    noverlap = int(nperseg * 0.9)
 
-    f, t, Sxx = spectrogram(x, fs=fs, window='hann', nperseg=nperseg,
-                            noverlap=noverlap, mode='psd')
+    # Обчислюємо nperseg та noverlap
+    if seg_len_s is not None:
+        nperseg = int(seg_len_s * fs)
+    else:
+        nperseg = min(int(fs * 2), len(x))
+        if len(x) == nperseg:
+            nperseg = int(len(x) / 6)
+
+    if overlap_s is not None:
+        noverlap = int(overlap_s * fs)
+    else:
+        noverlap = int(nperseg * 0.9)
+
+    # Захист від помилки: noverlap must be less than nperseg
+    if noverlap >= nperseg:
+        noverlap = nperseg - 1
+
+    print('spectr')
+    print(nperseg)
+    print(noverlap)
+
+    # Спектрограма
+    f, t, Sxx = spectrogram(x, fs=fs, window='hann',
+                            nperseg=nperseg, noverlap=noverlap, mode='psd')
     Sxx_dB = 10 * np.log10(Sxx + 1e-12)
 
     if ax is None:
@@ -308,7 +375,10 @@ def geo_spectr_with_colorbar(data_ser, fs, n_samples, start_date, name='', ax=No
 
     return signal
 
-def spectr_plot(df, fs=800, n_cols=4, columns=['X1','Y11','Y12','Z1','X2','Y21','Y22','Z2','X3','Y31','Y32','Z3']):
+
+
+
+def spectr_plot(df, fs=800, n_cols=4, columns=['X1','Y11','Y12','Z1','X2','Y21','Y22','Z2','X3','Y31','Y32','Z3'], seg_len_s=None, overlap_s=None):
     """
     Будує спектрограми для вказаних сигналів у DataFrame.
 
@@ -330,7 +400,7 @@ def spectr_plot(df, fs=800, n_cols=4, columns=['X1','Y11','Y12','Z1','X2','Y21',
     for i, col in enumerate(columns):
         ax = axes[i]
         # Припускаємо, що geo_spectr_with_colorbar приймає параметр ax
-        geo_spectr_with_colorbar(df[col], fs=fs, n_samples=len(df), start_date='2025-05-21', name=col, ax=ax)
+        geo_spectr_with_colorbar(df[col], fs=fs, n_samples=len(df), start_date='2025-05-21', name=col, ax=ax, seg_len_s=seg_len_s, overlap_s=seg_len_s)
         # geo_spectr_with_colorbar(df[col], fs=fs, n_samples=len(df), start_date='2025-05-21', name=col)
 
     # Сховати зайві осі
@@ -1090,8 +1160,8 @@ def plot_coherence(sig1, sig2, fs, name1, name2, mode='matplotlib', scale=1.0):
         return fig
     
 def coherent_subtraction_aligned_with_mask(sig_primary, 
-                                           sig_reference, fs=600,
-                                           nperseg=1024, noverlap=512,
+                                           sig_reference, fs=800,
+                                           seg_len_s=None, overlap_s=None,
                                            coherence_threshold=0.7):
     """
     Когерентне віднімання з урахуванням маски когерентності.
@@ -1117,6 +1187,33 @@ def coherent_subtraction_aligned_with_mask(sig_primary,
     def normalize_signal(sig):
         """Нормалізація сигналу за амплітудою."""
         return sig / (np.max(np.abs(sig)) + 1e-10)
+
+
+    x = sig_primary.values
+
+
+    # Обчислюємо nperseg та noverlap
+    if seg_len_s is not None:
+        nperseg = int(seg_len_s * fs)
+    else:
+        nperseg = min(int(fs * 2), len(x))
+        if len(x) == nperseg:
+            nperseg = int(len(x) / 6)
+
+    if overlap_s is not None:
+        noverlap = int(overlap_s * fs)
+    else:
+        noverlap = int(nperseg * 0.9)
+
+    # Захист від помилки: noverlap must be less than nperseg
+    if noverlap >= nperseg:
+        noverlap = nperseg - 1
+
+    print('coherence')
+    print(nperseg)
+    print(noverlap)
+
+
 
     # --- 1. Оцінка затримки ---
     delay = estimate_delay(sig_primary, sig_reference)
