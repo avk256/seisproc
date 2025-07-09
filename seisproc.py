@@ -727,7 +727,7 @@ def vpf(Vr, Vz, fs, mode='matrix', scale=1.0):
     Hr = hilbert(Vr)
     Hz = hilbert(Vz)
 
-    VPP = Hr.conj() * Hz
+    VPP = Hr * Hz.conj()
     imag_VPP = np.imag(VPP)
 
     if mode == 'matrix':
