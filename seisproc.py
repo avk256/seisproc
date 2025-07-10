@@ -458,10 +458,11 @@ def psd_plot_df(df, fs, n_cols=4, columns=['X1','Y11','Y12','Z1','X2','Y21','Y22
         for i, col in enumerate(columns):
             signal = df[col].values
             f, Pxx = welch(signal, fs=fs, nperseg=1024)
-            axes[i].semilogy(f, Pxx)
+            Pxx_dB = 10 * np.log10(Pxx + 1e-12)  # захист від log(0)
+            axes[i].semilogy(f, Pxx_dB)
             axes[i].set_title(f"PSD: {col}")
             axes[i].set_xlabel("Частота (Гц)")
-            axes[i].set_ylabel("Потужність / Гц")
+            axes[i].set_ylabel("Потужність / Гц, Дб")
             axes[i].grid(True)
 
         for j in range(i + 1, len(axes)):
@@ -480,9 +481,9 @@ def psd_plot_df(df, fs, n_cols=4, columns=['X1','Y11','Y12','Z1','X2','Y21','Y22
             col_pos = idx % n_cols + 1
             signal = df[col].values
             f, Pxx = welch(signal, fs=fs, nperseg=1024)
-
+            Pxx_dB = 10 * np.log10(Pxx + 1e-12)  # захист від log(0)
             fig.add_trace(
-                go.Scatter(x=f, y=Pxx, mode='lines', name=col),
+                go.Scatter(x=f, y=Pxx_dB, mode='lines', name=col),
                 row=row, col=col_pos
             )
             
@@ -497,7 +498,7 @@ def psd_plot_df(df, fs, n_cols=4, columns=['X1','Y11','Y12','Z1','X2','Y21','Y22
             title_text="Спектральна щільність потужності (PSD)",
             showlegend=False
         )
-        fig.update_yaxes(type="log", title_text="Потужність / Гц", tickformat=".2e")
+        fig.update_yaxes(title_text="Потужність / Гц, Дб", tickformat=".2f")
         fig.update_xaxes(title_text="Частота (Гц)")
         return fig
 
@@ -599,7 +600,7 @@ def plot_sta_lta(signal, fs, sta_win=0.2, lta_win=1.0, on_thresh=3.0, off_thresh
 
     return triggers
 
-def plot_hankel(Vr, Vz, scale=1.0, mode='matplotlib'):
+def plot_hankel(Vr, Vz, scale=1.0, mode='matplotlib', start_time=None, end_time=None, fs=800):
     """
     Створює графік Ганкеля (еліптична траєкторія частинки) у matplotlib або plotly.
 
@@ -614,6 +615,12 @@ def plot_hankel(Vr, Vz, scale=1.0, mode='matplotlib'):
     """
     Vr = np.asarray(Vr)
     Vz = np.asarray(Vz)
+    
+    if start_time is not None and end_time is not None:
+       i_start = int(start_time * fs)
+       i_end = int(end_time * fs)
+       Vr = Vr[i_start:i_end]
+       Vz = Vz[i_start:i_end]
 
     if mode == 'matplotlib':
         base_size = 6
