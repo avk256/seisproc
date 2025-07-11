@@ -430,7 +430,7 @@ def compute_radial(V_X, V_Y1, V_Y2, theta_deg):
     V_R = V_X * np.cos(theta_rad) + V_Y * np.sin(theta_rad)
     return V_R
 
-def psd_plot_df(df, fs, n_cols=4, columns=['X1','Y11','Y12','Z1','X2','Y21','Y22','Z2','X3','Y31','Y32','Z3'], mode='matplotlib'):
+def psd_plot_df(df, fs, n_cols=4, columns=['X1','Y11','Y12','Z1','X2','Y21','Y22','Z2','X3','Y31','Y32','Z3'], mode='matplotlib', scale='db'):
     """
     Візуалізує графіки спектральної щільності потужності (PSD) для вказаних колонок DataFrame
     з використанням matplotlib або plotly.
@@ -459,7 +459,10 @@ def psd_plot_df(df, fs, n_cols=4, columns=['X1','Y11','Y12','Z1','X2','Y21','Y22
             signal = df[col].values
             f, Pxx = welch(signal, fs=fs, nperseg=1024)
             Pxx_dB = 10 * np.log10(Pxx + 1e-12)  # захист від log(0)
-            axes[i].semilogy(f, Pxx_dB)
+            if scale=='db':
+                axes[i].semilogy(f, Pxx_dB)
+            if scale=='energy':
+                axes[i].semilogy(f, Pxx)
             axes[i].set_title(f"PSD: {col}")
             axes[i].set_xlabel("Частота (Гц)")
             axes[i].set_ylabel("Потужність / Гц, Дб")
@@ -482,11 +485,16 @@ def psd_plot_df(df, fs, n_cols=4, columns=['X1','Y11','Y12','Z1','X2','Y21','Y22
             signal = df[col].values
             f, Pxx = welch(signal, fs=fs, nperseg=1024)
             Pxx_dB = 10 * np.log10(Pxx + 1e-12)  # захист від log(0)
-            fig.add_trace(
-                go.Scatter(x=f, y=Pxx_dB, mode='lines', name=col),
-                row=row, col=col_pos
-            )
-            
+            if scale=='db':
+                fig.add_trace(
+                    go.Scatter(x=f, y=Pxx_dB, mode='lines', name=col),
+                    row=row, col=col_pos
+                )
+            if scale=='energy':
+                fig.add_trace(
+                    go.Scatter(x=f, y=Pxx, mode='lines', name=col),
+                    row=row, col=col_pos
+                )
             fig.update_xaxes(
             title_text="Частота (Гц)",
             showticklabels=True,
@@ -498,9 +506,33 @@ def psd_plot_df(df, fs, n_cols=4, columns=['X1','Y11','Y12','Z1','X2','Y21','Y22
             title_text="Спектральна щільність потужності (PSD)",
             showlegend=False
         )
-        fig.update_yaxes(title_text="Потужність / Гц, Дб", tickformat=".2f")
+        
+        if scale=='db':
+            fig.update_yaxes(title_text="Потужність / Гц, Дб", tickformat=".2f")
+        if scale=='energy':
+            fig.update_yaxes(title_text="Потужність / Гц, Дб", tickformat=".2e")
         fig.update_xaxes(title_text="Частота (Гц)")
         return fig
+    
+    elif mode == 'matrix':
+        f_list = []
+        Pxx_list = []
+        Pxx_dB_list = []
+        for idx, col in enumerate(columns):
+            row = idx // n_cols + 1
+            col_pos = idx % n_cols + 1
+            signal = df[col].values
+            f, Pxx = welch(signal, fs=fs, nperseg=1024)
+            Pxx_dB = 10 * np.log10(Pxx + 1e-12)  # захист від log(0)
+            f_list.append(f)
+            Pxx_list.append(Pxx)
+            Pxx_dB_list.append(Pxx_dB)
+        if scale=='db':
+            res = Pxx_dB_list
+        if scale=='energy':
+            res = Pxx_list
+        return f_list, res 
+        
 
     else:
         raise ValueError("backend повинен бути 'matplotlib' або 'plotly'")
@@ -1315,6 +1347,56 @@ def smooth_dataframe(df, method='savgol', fs=1000, **kwargs):
         df_smoothed[col] = smoothed
 
     return df_smoothed
+
+
+def compute_rms(signal, fs, start_time, end_time):
+    """
+    Обчислює RMS сигналу у заданому часовому діапазоні.
+
+    Parameters:
+        signal (np.ndarray): масив сигналу.
+        fs (float): частота дискретизації (Гц).
+        start_time (float): початок вікна (секунди).
+        end_time (float): кінець вікна (секунди).
+
+    Returns:
+        float: RMS значення у вікні.
+    """
+    start_idx = int(start_time * fs)
+    end_idx = int(end_time * fs)
+    windowed_signal = signal[start_idx:end_idx]
+    rms = np.sqrt(np.mean(windowed_signal**2))
+    return rms
+
+def rms_in_band(freqs, signal, min_freq, max_freq):
+    """
+    Обчислює середнє квадратичне значення сигналу в заданому частотному діапазоні.
+
+    Parameters:
+        freqs (np.ndarray): масив частот (1D).
+        signal (np.ndarray): спектральний сигнал (1D), такий самий розмір як freqs.
+        min_freq (float): мінімальна частота діапазону.
+        max_freq (float): максимальна частота діапазону.
+
+    Returns:
+        rms_value (float): середнє квадратичне значення у вибраному діапазоні.
+        band_freqs (tuple): фактичні частоти меж діапазону (f_start, f_end).
+    """
+
+    # Знаходимо індекси найближчих значень у масиві частот
+    idx_start = np.argmin(np.abs(freqs - min_freq))
+    idx_end = np.argmin(np.abs(freqs - max_freq))
+
+    # Сортуємо індекси на випадок, якщо max_freq < min_freq
+    idx_min, idx_max = sorted([idx_start, idx_end])
+
+    # Вирізаємо діапазон частот та сигналу
+    selected_signal = signal[idx_min:idx_max + 1]
+
+    # Обчислюємо RMS
+    rms_value = np.sqrt(np.mean(selected_signal**2))
+    return rms_value, (freqs[idx_min], freqs[idx_max])
+
     
 
 
