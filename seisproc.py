@@ -1198,24 +1198,111 @@ def plot_coherence(sig1, sig2, fs, name1, name2, mode='matplotlib', scale=1.0):
         
         return fig
     
-def coherent_subtraction_aligned_with_mask(sig_primary, 
+# def coherent_subtraction_aligned_with_mask(sig_primary, 
+#                                            sig_reference, fs=800,
+#                                            seg_len_s=None, overlap_s=None,
+#                                            coherence_threshold=0.7):
+#     """
+#     Когерентне віднімання з урахуванням маски когерентності.
+#     Враховує затримку, фазу, амплітуду і обмежує віднімання тільки до когерентних частот.
+#     """
+
+#     # --- Внутрішні допоміжні функції ---
+#     def estimate_delay(sig1, sig2):
+#         """Оцінка затримки між сигналами через крос-кореляцію."""
+#         corr = np.correlate(sig1, sig2, mode='full')
+#         lag = np.argmax(corr) - len(sig2) + 1
+#         return lag
+
+#     def shift_signal(sig, delay):
+#         """Зсув сигналу на задану кількість семплів."""
+#         if delay > 0:
+#             return np.pad(sig, (delay, 0), mode='constant')[:len(sig)]
+#         elif delay < 0:
+#             return np.pad(sig, (0, -delay), mode='constant')[-delay:]
+#         else:
+#             return sig
+
+#     def normalize_signal(sig):
+#         """Нормалізація сигналу за амплітудою."""
+#         return sig / (np.max(np.abs(sig)) + 1e-10)
+
+
+#     x = sig_primary.values
+
+
+#     # Обчислюємо nperseg та noverlap
+#     if seg_len_s is not None:
+#         nperseg = int(seg_len_s * fs)
+#     else:
+#         nperseg = min(int(fs * 2), len(x))
+#         if len(x) == nperseg:
+#             nperseg = int(len(x) / 6)
+
+#     if overlap_s is not None:
+#         noverlap = int(overlap_s * fs)
+#     else:
+#         noverlap = int(nperseg * 0.9)
+
+#     # Захист від помилки: noverlap must be less than nperseg
+#     if noverlap >= nperseg:
+#         noverlap = nperseg - 1
+
+#     print('coherence')
+#     print(nperseg)
+#     print(noverlap)
+
+
+
+#     # --- 1. Оцінка затримки ---
+#     delay = estimate_delay(sig_primary, sig_reference)
+
+#     # --- 2. Вирівнювання сигналів ---
+#     sig_ref_aligned = shift_signal(sig_reference, delay)
+
+#     # --- 3. STFT ---
+#     f, t_stft, Z_primary = stft(sig_primary, fs=fs, nperseg=nperseg, noverlap=noverlap)
+#     _, _, Z_reference = stft(sig_ref_aligned, fs=fs, nperseg=nperseg, noverlap=noverlap)
+
+#     # --- 4. Оцінка когерентності ---
+#     f_coh, Cxy = coherence(sig_primary, sig_ref_aligned, fs=fs, nperseg=nperseg, noverlap=noverlap)
+
+#     # Побудова маски когерентності
+#     coh_mask = (Cxy > coherence_threshold).astype(float)  # 1 – когерентна, 0 – ні
+#     coh_mask_2d = coh_mask[:, np.newaxis]  # для STFT (freq x time)
+
+#     # --- 5. Когерентне віднімання з маскою ---
+#     gain = np.abs(Z_primary) / (np.abs(Z_reference) + 1e-10)
+#     phase_correction = Z_reference / (np.abs(Z_reference) + 1e-10)
+#     noise_estimate = gain * phase_correction
+
+#     Z_clean = Z_primary - coh_mask_2d * noise_estimate  # застосування маски
+
+#     # --- 6. Обернене перетворення ---
+#     _, signal_cleaned = istft(Z_clean, fs=fs, nperseg=nperseg, noverlap=noverlap)
+
+#     # --- 7. Постобробка ---
+#     signal_cleaned = signal_cleaned[:len(sig_primary)]
+#     signal_cleaned = normalize_signal(signal_cleaned)
+
+#     return signal_cleaned, delay, coh_mask, f_coh
+
+from scipy.signal import stft, istft, correlate, windows
+from scipy.signal.windows import hann
+
+def coherent_subtraction_aligned_with_mask(sig_primary,
                                            sig_reference, fs=800,
                                            seg_len_s=None, overlap_s=None,
                                            coherence_threshold=0.7):
-    """
-    Когерентне віднімання з урахуванням маски когерентності.
-    Враховує затримку, фазу, амплітуду і обмежує віднімання тільки до когерентних частот.
-    """
-
-    # --- Внутрішні допоміжні функції ---
     def estimate_delay(sig1, sig2):
-        """Оцінка затримки між сигналами через крос-кореляцію."""
-        corr = np.correlate(sig1, sig2, mode='full')
-        lag = np.argmax(corr) - len(sig2) + 1
-        return lag
+        n = len(sig1)
+        win = windows.hann(n)
+        corr = correlate(sig1 * win, sig2 * win, mode='full')
+        lags = np.arange(-n + 1, n)
+        delay = lags[np.argmax(corr)]
+        return delay
 
     def shift_signal(sig, delay):
-        """Зсув сигналу на задану кількість семплів."""
         if delay > 0:
             return np.pad(sig, (delay, 0), mode='constant')[:len(sig)]
         elif delay < 0:
@@ -1224,68 +1311,42 @@ def coherent_subtraction_aligned_with_mask(sig_primary,
             return sig
 
     def normalize_signal(sig):
-        """Нормалізація сигналу за амплітудою."""
         return sig / (np.max(np.abs(sig)) + 1e-10)
 
+    x = sig_primary
+    y = sig_reference
 
-    x = sig_primary.values
+    nperseg = int(seg_len_s * fs) if seg_len_s else min(int(fs * 2), len(x))
+    noverlap = int(overlap_s * fs) if overlap_s else int(nperseg * 0.9)
+    noverlap = min(noverlap, nperseg - 1)
 
+    delay = estimate_delay(x, y)
+    y_aligned = shift_signal(y, delay)
 
-    # Обчислюємо nperseg та noverlap
-    if seg_len_s is not None:
-        nperseg = int(seg_len_s * fs)
-    else:
-        nperseg = min(int(fs * 2), len(x))
-        if len(x) == nperseg:
-            nperseg = int(len(x) / 6)
+    f, t_stft, Zx = stft(x, fs=fs, nperseg=nperseg, noverlap=noverlap)
+    _, _, Zy = stft(y_aligned, fs=fs, nperseg=nperseg, noverlap=noverlap)
 
-    if overlap_s is not None:
-        noverlap = int(overlap_s * fs)
-    else:
-        noverlap = int(nperseg * 0.9)
+    Zxy = Zx * np.conj(Zy)
+    Sxx = np.abs(Zx) ** 2
+    Syy = np.abs(Zy) ** 2
+    coherence_local = np.abs(Zxy) ** 2 / (Sxx * Syy + 1e-10)
 
-    # Захист від помилки: noverlap must be less than nperseg
-    if noverlap >= nperseg:
-        noverlap = nperseg - 1
+    coh_mask = (coherence_local > coherence_threshold).astype(float)
 
-    print('coherence')
-    print(nperseg)
-    print(noverlap)
+    snr_estimate = Sxx / (Syy + 1e-10)
+    wiener_mask = snr_estimate / (snr_estimate + 1.0)
 
+    suppression_mask = coh_mask * (1.0 - wiener_mask)
 
+    Z_clean = Zx * (1.0 - suppression_mask)
 
-    # --- 1. Оцінка затримки ---
-    delay = estimate_delay(sig_primary, sig_reference)
-
-    # --- 2. Вирівнювання сигналів ---
-    sig_ref_aligned = shift_signal(sig_reference, delay)
-
-    # --- 3. STFT ---
-    f, t_stft, Z_primary = stft(sig_primary, fs=fs, nperseg=nperseg, noverlap=noverlap)
-    _, _, Z_reference = stft(sig_ref_aligned, fs=fs, nperseg=nperseg, noverlap=noverlap)
-
-    # --- 4. Оцінка когерентності ---
-    f_coh, Cxy = coherence(sig_primary, sig_ref_aligned, fs=fs, nperseg=nperseg, noverlap=noverlap)
-
-    # Побудова маски когерентності
-    coh_mask = (Cxy > coherence_threshold).astype(float)  # 1 – когерентна, 0 – ні
-    coh_mask_2d = coh_mask[:, np.newaxis]  # для STFT (freq x time)
-
-    # --- 5. Когерентне віднімання з маскою ---
-    gain = np.abs(Z_primary) / (np.abs(Z_reference) + 1e-10)
-    phase_correction = Z_reference / (np.abs(Z_reference) + 1e-10)
-    noise_estimate = gain * phase_correction
-
-    Z_clean = Z_primary - coh_mask_2d * noise_estimate  # застосування маски
-
-    # --- 6. Обернене перетворення ---
     _, signal_cleaned = istft(Z_clean, fs=fs, nperseg=nperseg, noverlap=noverlap)
+    signal_cleaned = signal_cleaned[:len(x)]
+    # signal_cleaned = normalize_signal(signal_cleaned)
 
-    # --- 7. Постобробка ---
-    signal_cleaned = signal_cleaned[:len(sig_primary)]
-    signal_cleaned = normalize_signal(signal_cleaned)
+    return signal_cleaned, delay, coherence_local, f, t_stft, Zx, Z_clean
 
-    return signal_cleaned, delay, coh_mask, f_coh
+
 
 def smooth_dataframe(df, method='savgol', fs=1000, **kwargs):
     """
@@ -1396,6 +1457,63 @@ def rms_in_band(freqs, signal, min_freq, max_freq):
     # Обчислюємо RMS
     rms_value = np.sqrt(np.mean(selected_signal**2))
     return rms_value, (freqs[idx_min], freqs[idx_max])
+
+
+def vpf_df(df, fs, columns=['X1', 'X2', 'X3', 'Z1', 'Z2', 'Z3']):
+    """
+    Виконує векторну поляризаційну фільтрацію (VPF) та візуалізує уявну частину комплексної потужності.
+
+    Parameters:
+        Vr (np.ndarray): радіальна компонента сигналу.
+        Vz (np.ndarray): вертикальна компонента сигналу.
+        fs (float): частота дискретизації (Гц).
+        mode (str): 'matrix' — повертає масив; 'fig' — повертає matplotlib.figure; 'plotly' — повертає plotly.graph_objects.Figure.
+        scale (float): масштаб (тільки для matplotlib), за замовчуванням 1.0.
+
+    Returns:
+        або: np.ndarray (imag_VPP), або matplotlib.figure.Figure, або plotly.graph_objects.Figure
+    """
+    n_samples = len(df)
+    time = np.arange(n_samples) / fs
+
+    # Обчислення аналітичних сигналів
+    Vr1 = []
+    Vr2 = []
+    Vr3 = []
+    Vz1 = []
+    Vz2 = []
+    Vz3 = []
+    
+    VrVz_dict = {}
+    
+    if all(elem in list(df.columns) for elem in columns):
+    
+        Vr1.append(df['X1'])
+        Vr2.append(df['X2'])
+        Vr3.append(df['X3'])
+        Vz1.append(-df['Z1'])
+        Vz2.append(-df['Z2'])
+        Vz3.append(-df['Z3'])
+        Vr = {'1':Vr1, '2':Vr2, '3':Vr3}
+        Vz = {'1':Vz1, '2':Vz2, '3':Vz3}
+        VrVz_dict['Vr'] = Vr
+        VrVz_dict['Vz'] = Vz
+        
+    print('####################   VPF  ###########################')
+    print(VrVz_dict['Vr']['1'])
+    # breakpoint()
+        
+    im_power1 = vpf(np.array(VrVz_dict['Vr']['1']), np.array(VrVz_dict['Vz']['1']), fs, mode='matrix') 
+    im_power2 = vpf(np.array(VrVz_dict['Vr']['2']), np.array(VrVz_dict['Vz']['2']), fs, mode='matrix')
+    im_power3 = vpf(np.array(VrVz_dict['Vr']['3']), np.array(VrVz_dict['Vz']['3']), fs, mode='matrix') 
+
+    print(im_power1)
+    # breakpoint()
+
+    im_power_df = pd.DataFrame({'im_power1':im_power1[0],'im_power2':im_power2[0], 'im_power3':im_power3[0]})
+    
+    return im_power_df
+       
 
     
 
