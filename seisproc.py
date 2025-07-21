@@ -1513,6 +1513,63 @@ def vpf_df(df, fs, columns=['X1', 'X2', 'X3', 'Z1', 'Z2', 'Z3']):
     im_power_df = pd.DataFrame({'im_power1':im_power1[0],'im_power2':im_power2[0], 'im_power3':im_power3[0]})
     
     return im_power_df
+
+
+# import numpy as np
+# import pandas as pd
+
+def to_decibels(df: pd.DataFrame, reference: float = 1.0) -> pd.DataFrame:
+    """
+    Перетворює всі числові значення DataFrame у децибельну шкалу.
+    
+    dB = 10 * log10(value / reference)
+    
+    Аргументи:
+        df: pandas.DataFrame з числовими значеннями
+        reference: значення, яке приймається за 0 дБ (типово 1.0)
+    
+    Повертає:
+        DataFrame з обчисленими значеннями в dB
+    """
+    # Уникаємо ділення на нуль
+    safe_df = df.replace(0, np.nan)
+    
+    # Обчислюємо децибели
+    db_df = 10 * np.log10(safe_df / reference)
+    
+    # Замінюємо -inf/NaN на великі від’ємні числа (опційно)
+    db_df = db_df.fillna(-np.inf)
+    
+    return db_df
+
+def compute_snr_df(signal_df: pd.DataFrame, noise_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Обчислює відношення SNR (Signal-to-Noise Ratio) як відношення RMS сигналу до RMS шуму
+    для кожної колонки датафрейму.
+
+    Parameters:
+        signal_df (pd.DataFrame): датафрейм з сигналами по колонках
+        noise_df (pd.DataFrame): датафрейм з шумом по колонках (такі ж назви колонок)
+
+    Returns:
+        pd.DataFrame: датафрейм з однією строкою та такими ж назвами колонок, як у signal_df,
+                      значення — SNR для кожного сигналу
+    """
+    snr_values = {}
+
+    for col in signal_df.columns:
+        signal = signal_df[col].values
+        noise = noise_df[col].values
+
+        rms_signal = np.sqrt(np.mean(signal**2))
+        rms_noise = np.sqrt(np.mean(noise**2))
+
+        snr = rms_signal / (rms_noise + 1e-20)  # Додаємо epsilon для уникнення ділення на нуль
+        snr_values[col] = snr
+
+    return pd.DataFrame([snr_values])
+
+
        
 
     
