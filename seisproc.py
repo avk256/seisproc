@@ -11,6 +11,8 @@ from scipy.signal import welch
 from scipy.signal import correlate
 from scipy.signal import stft, istft, coherence, convolve2d
 from scipy.signal import detrend
+from scipy.signal import correlate, hilbert, windows
+from numpy.fft import fft, ifft, fftshift
 
 from sklearn.preprocessing import StandardScaler
 
@@ -1290,61 +1292,61 @@ def plot_coherence(sig1, sig2, fs, name1, name2, mode='matplotlib', scale=1.0):
 from scipy.signal import stft, istft, correlate, windows
 from scipy.signal.windows import hann
 
-def coherent_subtraction_aligned_with_mask(sig_primary,
-                                           sig_reference, fs=800,
-                                           seg_len_s=None, overlap_s=None,
-                                           coherence_threshold=0.7):
-    def estimate_delay(sig1, sig2):
-        n = len(sig1)
-        win = windows.hann(n)
-        corr = correlate(sig1 * win, sig2 * win, mode='full')
-        lags = np.arange(-n + 1, n)
-        delay = lags[np.argmax(corr)]
-        return delay
+# def coherent_subtraction_aligned_with_mask(sig_primary,
+#                                            sig_reference, fs=800,
+#                                            seg_len_s=None, overlap_s=None,
+#                                            coherence_threshold=0.7):
+#     def estimate_delay(sig1, sig2):
+#         n = len(sig1)
+#         win = windows.hann(n)
+#         corr = correlate(sig1 * win, sig2 * win, mode='full')
+#         lags = np.arange(-n + 1, n)
+#         delay = lags[np.argmax(corr)]
+#         return delay
 
-    def shift_signal(sig, delay):
-        if delay > 0:
-            return np.pad(sig, (delay, 0), mode='constant')[:len(sig)]
-        elif delay < 0:
-            return np.pad(sig, (0, -delay), mode='constant')[-delay:]
-        else:
-            return sig
+#     def shift_signal(sig, delay):
+#         if delay > 0:
+#             return np.pad(sig, (delay, 0), mode='constant')[:len(sig)]
+#         elif delay < 0:
+#             return np.pad(sig, (0, -delay), mode='constant')[-delay:]
+#         else:
+#             return sig
 
-    def normalize_signal(sig):
-        return sig / (np.max(np.abs(sig)) + 1e-10)
+#     def normalize_signal(sig):
+#         return sig / (np.max(np.abs(sig)) + 1e-10)
 
-    x = sig_primary
-    y = sig_reference
+#     x = sig_primary
+#     y = sig_reference
 
-    nperseg = int(seg_len_s * fs) if seg_len_s else min(int(fs * 2), len(x))
-    noverlap = int(overlap_s * fs) if overlap_s else int(nperseg * 0.9)
-    noverlap = min(noverlap, nperseg - 1)
+#     nperseg = int(seg_len_s * fs) if seg_len_s else min(int(fs * 2), len(x))
+#     noverlap = int(overlap_s * fs) if overlap_s else int(nperseg * 0.9)
+#     noverlap = min(noverlap, nperseg - 1)
 
-    delay = estimate_delay(x, y)
-    y_aligned = shift_signal(y, delay)
+#     delay = estimate_delay(x, y)
+#     y_aligned = shift_signal(y, delay)
 
-    f, t_stft, Zx = stft(x, fs=fs, nperseg=nperseg, noverlap=noverlap)
-    _, _, Zy = stft(y_aligned, fs=fs, nperseg=nperseg, noverlap=noverlap)
+#     f, t_stft, Zx = stft(x, fs=fs, nperseg=nperseg, noverlap=noverlap)
+#     _, _, Zy = stft(y_aligned, fs=fs, nperseg=nperseg, noverlap=noverlap)
 
-    Zxy = Zx * np.conj(Zy)
-    Sxx = np.abs(Zx) ** 2
-    Syy = np.abs(Zy) ** 2
-    coherence_local = np.abs(Zxy) ** 2 / (Sxx * Syy + 1e-10)
+#     Zxy = Zx * np.conj(Zy)
+#     Sxx = np.abs(Zx) ** 2
+#     Syy = np.abs(Zy) ** 2
+#     coherence_local = np.abs(Zxy) ** 2 / (Sxx * Syy + 1e-10)
 
-    coh_mask = (coherence_local > coherence_threshold).astype(float)
+#     coh_mask = (coherence_local > coherence_threshold).astype(float)
 
-    snr_estimate = Sxx / (Syy + 1e-10)
-    wiener_mask = snr_estimate / (snr_estimate + 1.0)
+#     snr_estimate = Sxx / (Syy + 1e-10)
+#     wiener_mask = snr_estimate / (snr_estimate + 1.0)
 
-    suppression_mask = coh_mask * (1.0 - wiener_mask)
+#     suppression_mask = coh_mask * (1.0 - wiener_mask)
 
-    Z_clean = Zx * (1.0 - suppression_mask)
+#     Z_clean = Zx * (1.0 - suppression_mask)
 
-    _, signal_cleaned = istft(Z_clean, fs=fs, nperseg=nperseg, noverlap=noverlap)
-    signal_cleaned = signal_cleaned[:len(x)]
-    # signal_cleaned = normalize_signal(signal_cleaned)
+#     _, signal_cleaned = istft(Z_clean, fs=fs, nperseg=nperseg, noverlap=noverlap)
+#     signal_cleaned = signal_cleaned[:len(x)]
+#     # signal_cleaned = normalize_signal(signal_cleaned)
 
-    return signal_cleaned, delay, coherence_local, f, t_stft, Zx, Z_clean
+#     return signal_cleaned, delay, coherence_local, f, t_stft, Zx, Z_clean
 
 
 
@@ -1459,64 +1461,123 @@ def rms_in_band(freqs, signal, min_freq, max_freq):
     return rms_value, (freqs[idx_min], freqs[idx_max])
 
 
-def vpf_df(df, fs, columns=['X1', 'X2', 'X3', 'Z1', 'Z2', 'Z3']):
+# def vpf_df(df, fs, columns=['X1', 'X2', 'X3', 'Z1', 'Z2', 'Z3']):
+#     """
+#     Виконує векторну поляризаційну фільтрацію (VPF) та візуалізує уявну частину комплексної потужності.
+
+#     Parameters:
+#         Vr (np.ndarray): радіальна компонента сигналу.
+#         Vz (np.ndarray): вертикальна компонента сигналу.
+#         fs (float): частота дискретизації (Гц).
+#         mode (str): 'matrix' — повертає масив; 'fig' — повертає matplotlib.figure; 'plotly' — повертає plotly.graph_objects.Figure.
+#         scale (float): масштаб (тільки для matplotlib), за замовчуванням 1.0.
+
+#     Returns:
+#         або: np.ndarray (imag_VPP), або matplotlib.figure.Figure, або plotly.graph_objects.Figure
+#     """
+#     n_samples = len(df)
+#     time = np.arange(n_samples) / fs
+
+#     # Обчислення аналітичних сигналів
+#     Vr1 = []
+#     Vr2 = []
+#     Vr3 = []
+#     Vz1 = []
+#     Vz2 = []
+#     Vz3 = []
+    
+#     VrVz_dict = {}
+    
+#     if all(elem in list(df.columns) for elem in columns):
+    
+#         Vr1.append(df['X1'])
+#         Vr2.append(df['X2'])
+#         Vr3.append(df['X3'])
+#         Vz1.append(-df['Z1'])
+#         Vz2.append(-df['Z2'])
+#         Vz3.append(-df['Z3'])
+#         Vr = {'1':Vr1, '2':Vr2, '3':Vr3}
+#         Vz = {'1':Vz1, '2':Vz2, '3':Vz3}
+#         VrVz_dict['Vr'] = Vr
+#         VrVz_dict['Vz'] = Vz
+        
+#     print('####################   VPF  ###########################')
+#     print(VrVz_dict['Vr']['1'])
+#     # breakpoint()
+        
+#     im_power1 = vpf(np.array(VrVz_dict['Vr']['1']), np.array(VrVz_dict['Vz']['1']), fs, mode='matrix') 
+#     im_power2 = vpf(np.array(VrVz_dict['Vr']['2']), np.array(VrVz_dict['Vz']['2']), fs, mode='matrix')
+#     im_power3 = vpf(np.array(VrVz_dict['Vr']['3']), np.array(VrVz_dict['Vz']['3']), fs, mode='matrix') 
+
+#     print(im_power1)
+#     # breakpoint()
+
+#     im_power_df = pd.DataFrame({'im_power1':im_power1[0],'im_power2':im_power2[0], 'im_power3':im_power3[0]})
+    
+#     return im_power_df
+
+
+def vpf_df(df, fs):
     """
-    Виконує векторну поляризаційну фільтрацію (VPF) та візуалізує уявну частину комплексної потужності.
+    Виконує векторну поляризаційну фільтрацію (VPF) для всіх X- і Z-компонент сигналу 
+    та повертає уявну частину комплексної потужності для кожної пари.
 
     Parameters:
-        Vr (np.ndarray): радіальна компонента сигналу.
-        Vz (np.ndarray): вертикальна компонента сигналу.
+        df (pd.DataFrame): датафрейм із сигналами, де X-компоненти — радіальні, Z — вертикальні.
         fs (float): частота дискретизації (Гц).
-        mode (str): 'matrix' — повертає масив; 'fig' — повертає matplotlib.figure; 'plotly' — повертає plotly.graph_objects.Figure.
-        scale (float): масштаб (тільки для matplotlib), за замовчуванням 1.0.
 
     Returns:
-        або: np.ndarray (imag_VPP), або matplotlib.figure.Figure, або plotly.graph_objects.Figure
+        pd.DataFrame: DataFrame з уявними частинами потужності для кожної пари X-Z.
     """
-    n_samples = len(df)
-    time = np.arange(n_samples) / fs
+    x_cols = [col for col in df.columns if col.startswith('X')]
+    z_cols = [col for col in df.columns if col.startswith('Z')]
+    
+    x_nums = []
+    z_nums = []
 
-    # Обчислення аналітичних сигналів
-    Vr1 = []
-    Vr2 = []
-    Vr3 = []
-    Vz1 = []
-    Vz2 = []
-    Vz3 = []
+    if len(list(df.columns)[0])>1:
+
+        x_nums = [col[-1] for col in df.columns if col.startswith('X')]
+        z_nums = [col[-1] for col in df.columns if col.startswith('Z')]
+
+
+    x_cols.sort()
+    z_cols.sort()
+    x_nums.sort()
+    z_nums.sort()
+
+
+    if len(x_cols) != len(z_cols):
+        raise ValueError("Кількість X- та Z-компонент повинна бути однакова.")
+
+    im_power_data = {}
+    i = 0
     
-    VrVz_dict = {}
+    # suffixes = []
     
-    if all(elem in list(df.columns) for elem in columns):
-    
-        Vr1.append(df['X1'])
-        Vr2.append(df['X2'])
-        Vr3.append(df['X3'])
-        Vz1.append(-df['Z1'])
-        Vz2.append(-df['Z2'])
-        Vz3.append(-df['Z3'])
-        Vr = {'1':Vr1, '2':Vr2, '3':Vr3}
-        Vz = {'1':Vz1, '2':Vz2, '3':Vz3}
-        VrVz_dict['Vr'] = Vr
-        VrVz_dict['Vz'] = Vz
+    for x_col, z_col in zip(x_cols, z_cols):
+        Vr = df[x_col].to_numpy()
+        Vz = -df[z_col].to_numpy()  # знак міняється згідно з оригінальною реалізацією
         
-    print('####################   VPF  ###########################')
-    print(VrVz_dict['Vr']['1'])
-    # breakpoint()
-        
-    im_power1 = vpf(np.array(VrVz_dict['Vr']['1']), np.array(VrVz_dict['Vz']['1']), fs, mode='matrix') 
-    im_power2 = vpf(np.array(VrVz_dict['Vr']['2']), np.array(VrVz_dict['Vz']['2']), fs, mode='matrix')
-    im_power3 = vpf(np.array(VrVz_dict['Vr']['3']), np.array(VrVz_dict['Vz']['3']), fs, mode='matrix') 
+        # # Зберігаємо останній символ
+        # if len(x_nums)>0 and x_nums[i] == z_nums[i]:
+            
+        #     pass
+        # else:
+        #     print(x_nums)
+        #     print(z_nums)
+        #     raise ValueError(f"Невідповідність суфіксів у парі: {x_col}, {z_col}")
 
-    print(im_power1)
-    # breakpoint()
+        im_power = vpf(Vr.reshape(1, -1), Vz.reshape(1, -1), fs, mode='matrix')  # reshape для 2D
+        if len(x_nums)>0:
+        	im_power_data[f'im_power{int(x_nums[i])}'] = im_power[0]
+        else:
+            im_power_data[f'im_power'] = im_power[0]
+        i = i + 1 
+    im_power_df = pd.DataFrame(im_power_data)
 
-    im_power_df = pd.DataFrame({'im_power1':im_power1[0],'im_power2':im_power2[0], 'im_power3':im_power3[0]})
-    
     return im_power_df
 
-
-# import numpy as np
-# import pandas as pd
 
 def to_decibels(df: pd.DataFrame, reference: float = 1.0) -> pd.DataFrame:
     """
@@ -1568,6 +1629,582 @@ def compute_snr_df(signal_df: pd.DataFrame, noise_df: pd.DataFrame) -> pd.DataFr
         snr_values[col] = snr
 
     return pd.DataFrame([snr_values])
+
+
+def align_dataframe_lengths(df_list):
+    """
+    Обрізає всі DataFrame-и в списку до мінімальної кількості рядків.
+
+    Parameters:
+        df_list (list of pd.DataFrame): Список DataFrame-ів.
+
+    Returns:
+        list of pd.DataFrame: Новий список вирівняних DataFrame-ів.
+    """
+    if not df_list:
+        return []
+
+    # Знаходимо довжину кожного DataFrame
+    lengths = [len(df) for df in df_list]
+    min_len = min(lengths)
+
+    # Якщо всі довжини однакові — повертаємо оригінальний список
+    if all(length == min_len for length in lengths):
+        return df_list
+
+    # Інакше — обрізаємо до min_len
+    return [df.iloc[:min_len].copy() for df in df_list]
+
+
+# def compute_delay_matrix(df, fs=1.0):
+#     """
+#     Обчислює затримки між сигналами в датафреймі за допомогою крос-кореляції.
+    
+#     Параметри:
+#         df (pd.DataFrame): DataFrame, де кожна колонка — окремий сигнал.
+#         fs (float): частота дискретизації (Гц). За замовчуванням 1.0.
+    
+#     Повертає:
+#         pd.DataFrame: Матриця затримок у секундах. Індекси — перший сигнал, колонки — другий сигнал.
+#     """
+#     signal_names = df.columns
+#     delay_matrix = pd.DataFrame(index=signal_names, columns=signal_names, dtype=float)
+#     n = len(df)
+
+#     for sig1 in signal_names:
+#         for sig2 in signal_names:
+#             x = df[sig1].values
+#             y = df[sig2].values
+
+#             corr = correlate(x - np.mean(x), y - np.mean(y), mode='full')
+#             lags = np.arange(-n + 1, n)
+#             delay_samples = lags[np.argmax(corr)]
+#             delay_seconds = delay_samples / fs
+
+#             delay_matrix.loc[sig1, sig2] = delay_seconds
+
+#     return delay_matrix
+
+
+# import numpy as np
+# import pandas as pd
+# from scipy.signal import correlate, hilbert
+# from numpy.fft import fft, ifft, fftshift
+
+# def compute_delay_matrix(df, fs=1.0, method='cross_correlation', max_lag_s=None):
+#     """
+#     Обчислює матрицю затримок між сигналами в датафреймі.
+
+#     Параметри:
+#         df (pd.DataFrame): датафрейм, де кожна колонка — сигнал.
+#         fs (float): частота дискретизації (Гц).
+#         method (str): метод оцінки затримки: 'cross_correlation', 'gcc_phat', 'envelope'.
+#         max_lag_s (float): максимальний допустимий лаг у секундах (тільки для 'cross_correlation').
+
+#     Повертає:
+#         pd.DataFrame: матриця затримок у секундах.
+#     """
+#     signal_names = df.columns
+#     delay_matrix = pd.DataFrame(index=signal_names, columns=signal_names, dtype=float)
+#     n = len(df)
+#     max_lag_samples = int(max_lag_s * fs) if max_lag_s else None
+
+#     def gcc_phat(sig1, sig2):
+#         n = len(sig1) + len(sig2)
+#         SIG1 = fft(sig1, n=n)
+#         SIG2 = fft(sig2, n=n)
+#         R = SIG1 * np.conj(SIG2)
+#         R /= np.abs(R) + 1e-10
+#         cc = fftshift(ifft(R).real)
+#         lags = np.arange(-n//2, n//2)
+#         delay = lags[np.argmax(cc)] / fs
+#         return delay
+
+#     def envelope_delay(sig1, sig2):
+#         env1 = np.abs(hilbert(sig1))
+#         env2 = np.abs(hilbert(sig2))
+#         corr = correlate(env1 - np.mean(env1), env2 - np.mean(env2), mode='full')
+#         lags = np.arange(-len(sig1) + 1, len(sig1))
+#         delay = lags[np.argmax(corr)] / fs
+#         return delay
+
+#     def cross_corr_delay(sig1, sig2):
+#         x = (sig1 - np.mean(sig1)) / (np.std(sig1) + 1e-10)
+#         y = (sig2 - np.mean(sig2)) / (np.std(sig2) + 1e-10)
+#         corr = correlate(x, y, mode='full')
+#         lags = np.arange(-n + 1, n)
+#         if max_lag_samples:
+#             mask = np.abs(lags) <= max_lag_samples
+#             corr = corr[mask]
+#             lags = lags[mask]
+#         delay = lags[np.argmax(corr)] / fs
+#         return delay
+
+#     for sig1 in signal_names:
+#         for sig2 in signal_names:
+#             s1 = df[sig1].values
+#             s2 = df[sig2].values
+
+#             if method == 'gcc_phat':
+#                 delay = gcc_phat(s1, s2)
+#             elif method == 'envelope':
+#                 delay = envelope_delay(s1, s2)
+#             elif method == 'cross_correlation':
+#                 delay = cross_corr_delay(s1, s2)
+#             else:
+#                 raise ValueError(f"Unknown method: {method}")
+            
+#             delay_matrix.loc[sig1, sig2] = delay
+
+#     return delay_matrix
+
+
+# import numpy as np
+# import pandas as pd
+# from scipy.signal import correlate, hilbert
+# from numpy.fft import fft, ifft, fftshift
+
+# def compute_delay_matrix(df, fs=1.0, method='cross_correlation', max_lag_s=None, rms_win_s=0.1):
+#     """
+#     Обчислює матрицю затримок між сигналами в датафреймі.
+
+#     Параметри:
+#         df (pd.DataFrame): датафрейм, де кожна колонка — сигнал.
+#         fs (float): частота дискретизації (Гц).
+#         method (str): метод оцінки затримки: 
+#                       'cross_correlation', 'gcc_phat', 'envelope', 'rms_envelope'.
+#         max_lag_s (float): максимальний допустимий лаг у секундах (тільки для 'cross_correlation').
+#         rms_win_s (float): розмір вікна (в секундах) для RMS-оцінки у методі 'rms_envelope'.
+
+#     Повертає:
+#         pd.DataFrame: матриця затримок у секундах.
+#     """
+#     signal_names = df.columns
+#     delay_matrix = pd.DataFrame(index=signal_names, columns=signal_names, dtype=float)
+#     n = len(df)
+#     max_lag_samples = int(max_lag_s * fs) if max_lag_s else None
+#     rms_win_samples = int(rms_win_s * fs)
+
+#     def gcc_phat(sig1, sig2):
+#         nfft = len(sig1) + len(sig2)
+#         SIG1 = fft(sig1, n=nfft)
+#         SIG2 = fft(sig2, n=nfft)
+#         R = SIG1 * np.conj(SIG2)
+#         R /= np.abs(R) + 1e-10
+#         cc = fftshift(ifft(R).real)
+#         lags = np.arange(-nfft // 2, nfft // 2)
+#         delay = lags[np.argmax(cc)] / fs
+#         return delay
+
+#     def envelope_delay(sig1, sig2):
+#         env1 = np.abs(hilbert(sig1))
+#         env2 = np.abs(hilbert(sig2))
+#         corr = correlate(env1 - np.mean(env1), env2 - np.mean(env2), mode='full')
+#         lags = np.arange(-len(sig1) + 1, len(sig1))
+#         delay = lags[np.argmax(corr)] / fs
+#         return delay
+
+#     def cross_corr_delay(sig1, sig2):
+#         x = (sig1 - np.mean(sig1)) / (np.std(sig1) + 1e-10)
+#         y = (sig2 - np.mean(sig2)) / (np.std(sig2) + 1e-10)
+#         corr = correlate(x, y, mode='full')
+#         lags = np.arange(-n + 1, n)
+#         if max_lag_samples:
+#             mask = np.abs(lags) <= max_lag_samples
+#             corr = corr[mask]
+#             lags = lags[mask]
+#         delay = lags[np.argmax(corr)] / fs
+#         return delay
+
+#     def rms_profile(signal, win_samples):
+#         pad = win_samples // 2
+#         padded = np.pad(signal, (pad, pad), mode='reflect')
+#         rms = np.sqrt(np.convolve(padded**2, np.ones(win_samples), 'valid') / win_samples)
+#         return rms
+
+#     def rms_envelope_delay(sig1, sig2):
+#         rms1 = rms_profile(sig1, rms_win_samples)
+#         rms2 = rms_profile(sig2, rms_win_samples)
+#         corr = correlate(rms1 - np.mean(rms1), rms2 - np.mean(rms2), mode='full')
+#         lags = np.arange(-len(rms1) + 1, len(rms1))
+#         delay = lags[np.argmax(corr)] / fs
+#         return delay
+
+#     for sig1 in signal_names:
+#         for sig2 in signal_names:
+#             s1 = df[sig1].values
+#             s2 = df[sig2].values
+
+#             if method == 'gcc_phat':
+#                 delay = gcc_phat(s1, s2)
+#             elif method == 'envelope':
+#                 delay = envelope_delay(s1, s2)
+#             elif method == 'cross_correlation':
+#                 delay = cross_corr_delay(s1, s2)
+#             elif method == 'rms_envelope':
+#                 delay = rms_envelope_delay(s1, s2)
+#             else:
+#                 raise ValueError(f"Unknown method: {method}")
+
+#             delay_matrix.loc[sig1, sig2] = delay
+
+#     return delay_matrix
+
+
+def compute_delay_matrix(df, fs=1.0, method='cross_correlation',
+                         max_lag_s=None, rms_win_s=0.1):
+    """
+    Обчислює матрицю затримок між сигналами в датафреймі.
+
+    Параметри:
+        df (pd.DataFrame): датафрейм, де кожна колонка — сигнал.
+        fs (float): частота дискретизації (Гц).
+        method (str): 'cross_correlation', 'gcc_phat', 'envelope', 'rms_envelope'.
+        max_lag_s (float): максимальний допустимий лаг у секундах (для cross_correlation).
+        rms_win_s (float): розмір вікна (в секундах) для RMS у методі 'rms_envelope'.
+
+    Повертає:
+        pd.DataFrame: матриця затримок у секундах.
+    """
+    signal_names = df.columns
+    delay_matrix = pd.DataFrame(index=signal_names, columns=signal_names, dtype=float)
+    n = len(df)
+    max_lag_samples = int(max_lag_s * fs) if max_lag_s else None
+    rms_win_samples = int(rms_win_s * fs)
+
+    def gcc_phat_windowed(sig1, sig2):
+        # Віконування (Hann)
+        win = windows.hann(len(sig1))
+        sig1_win = sig1 * win
+        sig2_win = sig2 * win
+
+        # Zero-padding до найближчого 2^N
+        nfft = 2 ** int(np.ceil(np.log2(2 * len(sig1))))
+        SIG1 = fft(sig1_win, n=nfft)
+        SIG2 = fft(sig2_win, n=nfft)
+        R = SIG1 * np.conj(SIG2)
+        R /= np.abs(R) + 1e-10
+        cc = fftshift(ifft(R).real)
+        lags = np.arange(-nfft // 2, nfft // 2)
+        delay = lags[np.argmax(cc)] / fs
+        return delay
+
+    def envelope_delay(sig1, sig2):
+        env1 = np.abs(hilbert(sig1))
+        env2 = np.abs(hilbert(sig2))
+        corr = correlate(env1 - np.mean(env1), env2 - np.mean(env2), mode='full')
+        lags = np.arange(-len(sig1) + 1, len(sig1))
+        delay = lags[np.argmax(corr)] / fs
+        return delay
+
+    def cross_corr_delay(sig1, sig2):
+        x = (sig1 - np.mean(sig1)) / (np.std(sig1) + 1e-10)
+        y = (sig2 - np.mean(sig2)) / (np.std(sig2) + 1e-10)
+        corr = correlate(x, y, mode='full')
+        lags = np.arange(-n + 1, n)
+        if max_lag_samples:
+            mask = np.abs(lags) <= max_lag_samples
+            corr = corr[mask]
+            lags = lags[mask]
+        delay = lags[np.argmax(corr)] / fs
+        return delay
+
+    def rms_profile(signal, win_samples):
+        pad = win_samples // 2
+        padded = np.pad(signal, (pad, pad), mode='reflect')
+        rms = np.sqrt(np.convolve(padded**2, np.ones(win_samples), 'valid') / win_samples)
+        return rms
+
+    def rms_envelope_delay(sig1, sig2):
+        rms1 = rms_profile(sig1, rms_win_samples)
+        rms2 = rms_profile(sig2, rms_win_samples)
+        corr = correlate(rms1 - np.mean(rms1), rms2 - np.mean(rms2), mode='full')
+        lags = np.arange(-len(rms1) + 1, len(rms1))
+        delay = lags[np.argmax(corr)] / fs
+        return delay
+
+    for sig1 in signal_names:
+        for sig2 in signal_names:
+            s1 = df[sig1].values
+            s2 = df[sig2].values
+
+            if method == 'gcc_phat':
+                delay = gcc_phat_windowed(s1, s2)
+            elif method == 'envelope':
+                delay = envelope_delay(s1, s2)
+            elif method == 'cross_correlation':
+                delay = cross_corr_delay(s1, s2)
+            elif method == 'rms_envelope':
+                delay = rms_envelope_delay(s1, s2)
+            else:
+                raise ValueError(f"Unknown method: {method}")
+
+            delay_matrix.loc[sig1, sig2] = delay
+
+    return delay_matrix
+
+
+
+
+def align_two_signals(sig_ref, sig_target, fs=1.0, method='cross_correlation', max_lag_s=None):
+    """
+    Вирівнює сигнали за затримкою: вирівнює sig_target відносно sig_ref.
+
+    Параметри:
+        sig_ref (np.ndarray): базовий сигнал.
+        sig_target (np.ndarray): сигнал, який потрібно вирівняти.
+        fs (float): частота дискретизації (Гц).
+        method (str): метод оцінки затримки ('cross_correlation', 'gcc_phat', 'envelope', 'rms_envelope').
+        max_lag_s (float): максимальна затримка (тільки для 'cross_correlation').
+
+    Повертає:
+        pd.DataFrame: датафрейм з вирівняними сигналами.
+    """
+    df = pd.DataFrame({'ref': sig_ref, 'target': sig_target})
+
+    
+    delay_df = compute_delay_matrix(df, fs=fs, method=method, max_lag_s=max_lag_s)
+
+    # Затримка між target і ref (в секундах → в семплах)
+    delay_s = delay_df.loc['ref', 'target']
+    delay_samples = int(round(delay_s * fs))
+
+    if delay_samples > 0:
+        aligned_target = np.pad(sig_target, (delay_samples, 0), mode='constant')[:len(sig_target)]
+    elif delay_samples < 0:
+        aligned_target = np.pad(sig_target, (0, -delay_samples), mode='constant')[-delay_samples:]
+    else:
+        aligned_target = sig_target
+
+    return pd.DataFrame({'ref': sig_ref, 'target_aligned': aligned_target})
+
+from scipy.signal import stft, istft
+
+def coherent_subtraction_aligned_with_mask(sig_primary,
+                                           sig_reference,
+                                           fs=800,
+                                           seg_len_s=None,
+                                           overlap_s=None,
+                                           coherence_threshold=0.7,
+                                           delay_method='gcc_phat',
+                                           max_lag_s=None):
+    """
+    Когерентне віднімання сигналу з частотною маскою та попереднім вирівнюванням.
+
+    Параметри:
+        sig_primary (np.ndarray): основний сигнал.
+        sig_reference (np.ndarray): сигнал-деструктор, який потрібно приглушити.
+        fs (float): частота дискретизації.
+        seg_len_s (float or None): довжина вікна STFT у секундах.
+        overlap_s (float or None): перекриття вікон у секундах.
+        coherence_threshold (float): поріг локальної когерентності.
+        delay_method (str): метод оцінки затримки ('cross_correlation', 'gcc_phat', 'envelope', 'rms_envelope').
+        max_lag_s (float or None): максимальна затримка (для cross_correlation).
+
+    Повертає:
+        signal_cleaned (np.ndarray): сигнал після приглушення когерентної компоненти.
+        delay (float): затримка між сигналами (в секундах).
+        coherence_local (np.ndarray): масив локальної когерентності.
+        f, t_stft (np.ndarray): частоти і часи STFT.
+        Zx, Z_clean (np.ndarray): спектри до і після приглушення.
+    """
+    # Вирівняти reference до primary
+    aligned_df = align_two_signals(sig_primary, sig_reference, fs=fs,
+                                   method=delay_method, max_lag_s=max_lag_s)
+    
+    x = aligned_df['ref'].values
+    y = aligned_df['target_aligned'].values
+
+    # Затримка була застосована під час вирівнювання
+    delay_df = compute_delay_matrix(aligned_df, fs=fs, method=delay_method, max_lag_s=max_lag_s)
+    delay = delay_df.loc['ref', 'target_aligned']
+
+    # STFT параметри
+    nperseg = int(seg_len_s * fs) if seg_len_s else min(int(fs * 2), len(x))
+    noverlap = int(overlap_s * fs) if overlap_s else int(nperseg * 0.9)
+    noverlap = min(noverlap, nperseg - 1)
+
+    # STFT обох сигналів
+    f, t_stft, Zx = stft(x, fs=fs, nperseg=nperseg, noverlap=noverlap)
+    _, _, Zy = stft(y, fs=fs, nperseg=nperseg, noverlap=noverlap)
+
+    # Оцінка локальної когерентності
+    Zxy = Zx * np.conj(Zy)
+    Sxx = np.abs(Zx) ** 2
+    Syy = np.abs(Zy) ** 2
+    coherence_local = np.abs(Zxy) ** 2 / (Sxx * Syy + 1e-10)
+
+    # Побудова маски придушення
+    coh_mask = (coherence_local > coherence_threshold).astype(float)
+    snr_estimate = Sxx / (Syy + 1e-10)
+    wiener_mask = snr_estimate / (snr_estimate + 1.0)
+    suppression_mask = coh_mask * (1.0 - wiener_mask)
+
+    # Придушення з використанням маски
+    Z_clean = Zx * (1.0 - suppression_mask)
+
+    # Зворотне перетворення
+    _, signal_cleaned = istft(Z_clean, fs=fs, nperseg=nperseg, noverlap=noverlap)
+    signal_cleaned = signal_cleaned[:len(x)]
+
+    return signal_cleaned, delay, coherence_local, f, t_stft, Zx, Z_clean
+
+
+# from scipy.signal import stft, istft, windows
+# import numpy as np
+# import pandas as pd
+
+def coherent_subtraction_adaptive(sig_primary,
+                                  sig_reference,
+                                  fs=800,
+                                  seg_len_s=1.0,
+                                  overlap_s=0.9,
+                                  coherence_bias=0.1,
+                                  suppression_strength=1.0,
+                                  delay_method='gcc_phat',
+                                  max_lag_s=None,
+                                  freq_limit=None):
+    """
+    Когерентне приглушення з адаптивною маскою та частотним обмеженням.
+
+    Параметри:
+        sig_primary (np.ndarray): основний сигнал.
+        sig_reference (np.ndarray): завада (референсний сигнал).
+        fs (float): частота дискретизації.
+        seg_len_s (float): довжина вікна STFT.
+        overlap_s (float): частка перекриття вікон.
+        coherence_bias (float): додатковий зсув до медіани когерентності (адаптивний поріг).
+        suppression_strength (float): коефіцієнт [0..1] сили приглушення.
+        delay_method (str): метод вирівнювання ('gcc_phat', 'cross_correlation' тощо).
+        max_lag_s (float or None): максимальний лаг для вирівнювання.
+        freq_limit (tuple or None): (fmin, fmax) — частотне обмеження для маски (Гц).
+
+    Повертає:
+        signal_cleaned (np.ndarray): очищений сигнал.
+        delay (float): затримка (в секундах).
+        coherence_local (np.ndarray): локальна когерентність.
+        f, t_stft (np.ndarray): частоти та часи STFT.
+        Zx, Z_clean (np.ndarray): спектр до/після.
+    """
+    # --- Вирівнювання ---
+    aligned_df = align_two_signals(sig_primary, sig_reference,
+                                   fs=fs, method=delay_method, max_lag_s=max_lag_s)
+    x = aligned_df['ref'].values
+    y = aligned_df['target_aligned'].values
+    delay_df = compute_delay_matrix(aligned_df, fs=fs, method=delay_method, max_lag_s=max_lag_s)
+    delay = delay_df.loc['ref', 'target_aligned']
+
+    # --- STFT ---
+    nperseg = int(seg_len_s * fs)
+    noverlap = int(overlap_s * nperseg)
+    f, t_stft, Zx = stft(x, fs=fs, nperseg=nperseg, noverlap=noverlap)
+    _, _, Zy = stft(y, fs=fs, nperseg=nperseg, noverlap=noverlap)
+
+    # --- Локальна когерентність ---
+    Zxy = Zx * np.conj(Zy)
+    Sxx = np.abs(Zx) ** 2
+    Syy = np.abs(Zy) ** 2
+    coherence_local = np.abs(Zxy) ** 2 / (Sxx * Syy + 1e-10)
+
+    # --- Адаптивна маска ---
+    adaptive_thresh = np.median(coherence_local, axis=1, keepdims=True) + coherence_bias
+    coh_mask = np.clip((coherence_local - adaptive_thresh) / (1.0 - adaptive_thresh + 1e-6), 0.0, 1.0)
+
+    # --- Обмеження частот (за бажанням) ---
+    if freq_limit:
+        fmin, fmax = freq_limit
+        band_mask = (f >= fmin) & (f <= fmax)
+        coh_mask[~band_mask, :] = 0.0
+
+    # --- Віенерівська маска ---
+    snr_estimate = Sxx / (Syy + 1e-10)
+    wiener_mask = snr_estimate / (snr_estimate + 1.0)
+    suppression_mask = coh_mask * (1.0 - wiener_mask)
+
+    # --- Придушення ---
+    Z_clean = Zx * (1.0 - suppression_strength * suppression_mask)
+
+    # --- Зворотне перетворення ---
+    _, signal_cleaned = istft(Z_clean, fs=fs, nperseg=nperseg, noverlap=noverlap)
+    signal_cleaned = signal_cleaned[:len(x)]
+
+    return signal_cleaned, delay, coherence_local, f, t_stft, Zx, Z_clean
+
+def coherent_summation(df, fs=800.0, method='gcc_phat', max_lag_s=None):
+    """
+    Когерентне підсумовування з використанням допоміжних функцій compute_delay_matrix та align_two_signals.
+
+    Параметри:
+        df (pd.DataFrame): датафрейм з сигналами (назви колонок: 'Z1', 'Z2', 'R1', 'R2', тощо)
+        fs (float): частота дискретизації (Гц)
+        method (str): метод оцінки затримки
+        max_lag_s (float): максимальна затримка (тільки для 'cross_correlation')
+
+    Повертає:
+        pd.DataFrame: підсумовані сигнали за напрямами геофонів
+    """
+    from collections import defaultdict
+
+    # Групування колонок за напрямами (усе крім останнього символу)
+    direction_groups = defaultdict(list)
+    for col in df.columns:
+        direction = col[:-1]
+        direction_groups[direction].append(col)
+
+    result = {}
+    for direction, cols in direction_groups.items():
+        signals = [df[col].values for col in cols]
+        ref_signal = signals[0]
+        aligned_signals = []
+
+        for sig in signals:
+            aligned_df = align_two_signals(ref_signal, sig, fs=fs, method=method, max_lag_s=max_lag_s)
+            aligned_signals.append(aligned_df['target_aligned'].values)
+
+        mean_signal = np.mean(aligned_signals, axis=0)
+        result[direction] = mean_signal
+        
+        res_df = pd.DataFrame(result)
+        # res_df = res_df.add_suffix('1')
+
+    return res_df
+
+
+# def duplicate_columns(df, n_seism):
+#     """
+#     Приймає датафрейм та дублює колонки X і Z, присвоюючи нові імена X1, X2, X3 і Z1, Z2, Z3.
+
+#     Параметри:
+#         df (pd.DataFrame): вхідний датафрейм з колонками 'X' та 'Z'
+
+#     Повертає:
+#         pd.DataFrame: датафрейм з новими дубльованими колонками
+#     """
+#     if 'X' not in df.columns or 'Z' not in df.columns:
+#         raise ValueError("У датафреймі повинні бути колонки з назвами 'X' та 'Z'.")
+
+#     df_new = df.copy()
+
+#     df_new['X1'] = df['X']
+#     df_new['X2'] = df['X']
+#     df_new['X3'] = df['X']
+
+#     df_new['Z1'] = df['Z']
+#     df_new['Z2'] = df['Z']
+#     df_new['Z3'] = df['Z']
+
+#     return df_new
+
+
+
+
+
+
+
+
+
+
+
 
 
        
