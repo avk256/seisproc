@@ -1140,7 +1140,8 @@ def plot_multiple_delay_matrices(all_delays: dict, title_prefix="Матриця"
     fig.tight_layout()
     return fig
 
-def plot_coherence(sig1, sig2, fs, name1, name2, mode='matplotlib', scale=1.0):
+def plot_coherence(sig1, sig2, fs, name1, name2, mode='plotly', scale=1.0,
+                   type_plot="log", nperseg=None, noverlap=None):
     """
     Обчислює та візуалізує когерентність між двома сигналами у частотній області.
 
@@ -1157,7 +1158,7 @@ def plot_coherence(sig1, sig2, fs, name1, name2, mode='matplotlib', scale=1.0):
         fig: matplotlib.figure.Figure або plotly.graph_objects.Figure
     """
     # Обчислення когерентності
-    f, Cxy = coherence(sig1, sig2, fs=fs, nperseg=1024)
+    f, Cxy = coherence(sig1, sig2, fs=fs, nperseg=nperseg, noverlap=noverlap)
 
     if mode == 'matplotlib':
         base_size = 6
@@ -1181,24 +1182,28 @@ def plot_coherence(sig1, sig2, fs, name1, name2, mode='matplotlib', scale=1.0):
             y=Cxy,
             mode='lines',
             line=dict(color='blue'),
-            name='Coherence'
+            name='Coherence',
+            hovertemplate='Частота: %{x:.2f} Гц<br>Когерентність: %{y:.4f}<extra></extra>'
         ))
 
         fig.update_layout(
             title=f'Когерентність між {name1} та {name2}',
             xaxis_title='Частота (Гц)',
             yaxis_title='Когерентність',
-            yaxis_type='log',
+            # yaxis_type='log',
             height=400,
             width=800,
             margin=dict(t=40, b=40, l=60, r=40),
         )
         
-        fig.update_yaxes(type="log", title_text="Когерентність", tickformat=".2f")
-        
+        fig.update_yaxes(type=type_plot, title_text="Когерентність", tickformat=".4f")
         
         
         return fig
+    
+    elif mode == 'matrix':
+        
+        return f, Cxy
     
 # def coherent_subtraction_aligned_with_mask(sig_primary, 
 #                                            sig_reference, fs=800,
