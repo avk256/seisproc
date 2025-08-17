@@ -2180,39 +2180,51 @@ def coherent_subtraction_adaptive_1d(
             return np.convolve(arr, k, mode="same")
         return arr
 
-    def _gcc_phat_delay(a, b, fs_local, max_lag_s_local=None):
+    def _gcc_phat_delay(a, b, fs, max_lag_s=None, sub_sample_align=True, eps=1e-12):
         """Оцінка затримки через GCC-PHAT (у сек)."""
-        nfft = 1
+
+        # 1) гарантуємо 1D-вектори
+        a = np.asarray(a, dtype=float).ravel()
+        b = np.asarray(b, dtype=float).ravel()
         N = len(a)
-        while nfft < 2*N: nfft <<= 1
-        # FFT
+    
+        # 2) nfft: найближча ступінь двійки ≥ 2N
+        nfft = 1 << (2*N - 1).bit_length()
+    
+        # 3) GCC-PHAT
         A = np.fft.rfft(a, n=nfft)
         B = np.fft.rfft(b, n=nfft)
         R = A * np.conj(B)
-        denom = np.abs(R) + 1e-12
-        R /= denom
+        R /= (np.abs(R) + eps)
+    
         r = np.fft.irfft(R, n=nfft)
-        # зсув нульового лага в центр
-        r = np.concatenate((r[-(nfft//2):], r[:(nfft//2)]))
-        lags = np.arange(-nfft//2, nfft//2)
-        if max_lag_s_local is not None and fs_local is not None:
-            max_lag = int(round(abs(max_lag_s_local) * fs_local))
+        r = np.fft.fftshift(r)                 # центруємо нульовий лаг
+        lags = np.arange(-nfft//2, nfft//2)    # той же розмір, що і r
+    
+        # 4) маскування допустимих лагів (1D!)
+        if (max_lag_s is not None) and (fs is not None):
+            max_lag = int(round(abs(max_lag_s) * fs))
             keep = (lags >= -max_lag) & (lags <= max_lag)
+            # переконаймося, що keep 1D і такої ж довжини, як r:
+            keep = np.asarray(keep, dtype=bool).ravel()
             r_masked = np.where(keep, r, -np.inf)
         else:
             r_masked = r
-        lag = lags[np.argmax(r_masked)]
-        # субсемплова уточнююча параболічна інтерполяція
+    
+        # 5) argmax по 1D
+        i = int(np.nanargmax(r_masked))        # на випадок NaN
+        i = np.clip(i, 1, len(r_masked)-2)     # щоб були сусіди для уточнення
+    
+        # 6) субсемплове уточнення (параболічне)
         if sub_sample_align:
-            i = np.argmax(r_masked)
-            if 0 < i < len(r_masked)-1:
-                y0, y1, y2 = r_masked[i-1], r_masked[i], r_masked[i+1]
-                denom = (y0 - 2*y1 + y2)
-                if np.abs(denom) > 1e-12:
-                    d = 0.5*(y0 - y2)/denom
-                    lag = lags[i] + d
-        delay_s = float(lag)/fs_local if fs_local else 0.0
-        return delay_s
+            y0, y1, y2 = r_masked[i-1], r_masked[i], r_masked[i+1]
+            denom = (y0 - 2*y1 + y2)
+            d = 0.0 if abs(denom) < eps else 0.5*(y0 - y2)/denom
+            lag_samp = (i - nfft//2) + d
+        else:
+            lag_samp = (i - nfft//2)
+    
+        return float(lag_samp) / fs if fs else 0.0
 
     def _apply_delay(b, delay_s_local, fs_local):
         """Зсув сигналу b на fractional delay (сек) через фазовий зсув у ФП."""
