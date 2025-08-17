@@ -2135,6 +2135,129 @@ def coherent_subtraction_adaptive(sig_primary,
 
     return signal_cleaned, delay, coherence_local, f, t_stft, Zx, Z_clean
 
+
+def coherent_subtraction_adaptive_1d(
+    sig_primary,
+    sig_reference,
+    fs=None,
+    win_len=201,                 # непарне ковзне вікно (відліки) для локальних оцінок
+    corr_threshold=0.9,          # поріг "часової когерентності" γ^2
+    suppression_strength=1.0,    # 0..1: сила приглушення
+    align=True,                  # вирівнювати reference до primary
+    max_lag_s=None,              # обмеження пошуку затримки (сек)
+    sub_sample_align=True,       # субсемплове вирівнювання через фазовий зсув у ФП
+    smooth_alpha=0,              # ширина згладжування α (відліки, 0 = без)
+    smooth_gamma=0               # ширина згладжування γ^2 (відліки, 0 = без)
+):
+    """
+    Когерентне віднімання для 1D-даних (імпульсні/спайкові сигнали).
+    Замість STFT використовується локальна унарна Вінер-субтракція у часі:
+        α = <xy> / <y^2>,  γ^2 = <xy>^2 / (<x^2><y^2>)  (усе в ковзному вікні),
+    а віднімання виконується лише там, де γ^2 >= corr_threshold.
+
+    Повертає:
+        cleaned (np.ndarray)  — очищений сигнал (довжина = len(sig_primary))
+        delay_sec (float)     — оцінена затримка reference відносно primary (сек; 0, якщо align=False або fs=None)
+        gamma2 (np.ndarray)   — масив локальної "когерентності" γ^2 у часі (0..1)
+        alpha (np.ndarray)    — локальний коефіцієнт масштабу α
+    """
+    x = np.asarray(sig_primary,  dtype=float)
+    y = np.asarray(sig_reference, dtype=float)
+    n = len(x)
+    assert len(y) == n, "sig_primary і sig_reference мають бути однакової довжини"
+    assert win_len >= 3 and win_len % 2 == 1, "win_len має бути непарним і >=3"
+
+    # ---------- Допоміжні ----------
+    def _moving_sum(arr, L):
+        # ковзна сума через згортку
+        k = np.ones(L, dtype=float)
+        return np.convolve(arr, k, mode="same")
+
+    def _smooth(arr, L):
+        if L and L > 1:
+            if L % 2 == 0: L += 1
+            k = np.ones(L, dtype=float)/L
+            return np.convolve(arr, k, mode="same")
+        return arr
+
+    def _gcc_phat_delay(a, b, fs_local, max_lag_s_local=None):
+        """Оцінка затримки через GCC-PHAT (у сек)."""
+        nfft = 1
+        N = len(a)
+        while nfft < 2*N: nfft <<= 1
+        # FFT
+        A = np.fft.rfft(a, n=nfft)
+        B = np.fft.rfft(b, n=nfft)
+        R = A * np.conj(B)
+        denom = np.abs(R) + 1e-12
+        R /= denom
+        r = np.fft.irfft(R, n=nfft)
+        # зсув нульового лага в центр
+        r = np.concatenate((r[-(nfft//2):], r[:(nfft//2)]))
+        lags = np.arange(-nfft//2, nfft//2)
+        if max_lag_s_local is not None and fs_local is not None:
+            max_lag = int(round(abs(max_lag_s_local) * fs_local))
+            keep = (lags >= -max_lag) & (lags <= max_lag)
+            r_masked = np.where(keep, r, -np.inf)
+        else:
+            r_masked = r
+        lag = lags[np.argmax(r_masked)]
+        # субсемплова уточнююча параболічна інтерполяція
+        if sub_sample_align:
+            i = np.argmax(r_masked)
+            if 0 < i < len(r_masked)-1:
+                y0, y1, y2 = r_masked[i-1], r_masked[i], r_masked[i+1]
+                denom = (y0 - 2*y1 + y2)
+                if np.abs(denom) > 1e-12:
+                    d = 0.5*(y0 - y2)/denom
+                    lag = lags[i] + d
+        delay_s = float(lag)/fs_local if fs_local else 0.0
+        return delay_s
+
+    def _apply_delay(b, delay_s_local, fs_local):
+        """Зсув сигналу b на fractional delay (сек) через фазовий зсув у ФП."""
+        if not fs_local or abs(delay_s_local) < 1e-15:
+            return b.copy()
+        N = len(b)
+        # FFT (двосторонній для коректного фазового оберту)
+        B = np.fft.rfft(b)
+        freqs = np.fft.rfftfreq(N, d=1.0/fs_local)
+        phase = np.exp(-1j*2*np.pi*freqs*delay_s_local)
+        Bout = B * phase
+        b_shift = np.fft.irfft(Bout, n=N)
+        return b_shift
+
+    # ---------- 1) Вирівнювання ----------
+    delay_sec = 0.0
+    if align and (fs is not None):
+        delay_sec = _gcc_phat_delay(x, y, fs, max_lag_s)
+        y = _apply_delay(y, delay_sec, fs)
+
+    # ---------- 2) Ковзні суми для локальних оцінок ----------
+    eps = 1e-12
+    xy_sum = _moving_sum(x*y, win_len)
+    xx_sum = _moving_sum(x*x, win_len) + eps
+    yy_sum = _moving_sum(y*y, win_len) + eps
+
+    # Локальний унарний коефіцієнт масштабу (мінімізує ||x - αy|| у вікні)
+    alpha = xy_sum / yy_sum
+
+    # Локальна "когерентність" γ^2 \in [0,1] (аналог MSC, але у часі)
+    gamma2 = (xy_sum**2) / (xx_sum*yy_sum)
+
+    # Згладжування за бажанням
+    if smooth_alpha and smooth_alpha > 1:
+        alpha = _smooth(alpha, smooth_alpha)
+    if smooth_gamma and smooth_gamma > 1:
+        gamma2 = _smooth(gamma2, smooth_gamma)
+
+    # ---------- 3) Gating та віднімання ----------
+    mask = (gamma2 >= corr_threshold).astype(float)
+    cleaned = x - suppression_strength * mask * alpha * y
+
+    return cleaned, delay_sec, gamma2, alpha
+
+
 def coherent_summation(df, fs=800.0, method='gcc_phat', max_lag_s=None):
     """
     Когерентне підсумовування з використанням допоміжних функцій compute_delay_matrix та align_two_signals.
