@@ -24,6 +24,9 @@ from statsmodels.nonparametric.smoothers_lowess import lowess
 from scipy.signal import savgol_filter
 from collections import defaultdict
 import plotly.express as px
+from collections import defaultdict
+from scipy.ndimage import uniform_filter1d
+
 
 def cut_dataframe_time_window(df, fs, start_time, end_time):
     """
@@ -2270,44 +2273,129 @@ def coherent_subtraction_adaptive_1d(
     return cleaned, delay_sec, gamma2, alpha
 
 
-def coherent_summation(df, fs=800.0, method='gcc_phat', max_lag_s=None):
+# def coherent_summation(df, fs=800.0, method='gcc_phat', max_lag_s=None):
+#     """
+#     Когерентне підсумовування з використанням допоміжних функцій compute_delay_matrix та align_two_signals.
+
+#     Параметри:
+#         df (pd.DataFrame): датафрейм з сигналами (назви колонок: 'Z1', 'Z2', 'R1', 'R2', тощо)
+#         fs (float): частота дискретизації (Гц)
+#         method (str): метод оцінки затримки
+#         max_lag_s (float): максимальна затримка (тільки для 'cross_correlation')
+
+#     Повертає:
+#         pd.DataFrame: підсумовані сигнали за напрямами геофонів
+#     """
+
+#     # Групування колонок за напрямами (усе крім останнього символу)
+#     direction_groups = defaultdict(list)
+#     for col in df.columns:
+#         direction = col[:-1]
+#         direction_groups[direction].append(col)
+
+#     result = {}
+#     for direction, cols in direction_groups.items():
+#         signals = [df[col].values for col in cols]
+#         ref_signal = signals[0]
+#         aligned_signals = []
+
+#         for sig in signals:
+#             aligned_df = align_two_signals(ref_signal, sig, fs=fs, method=method, max_lag_s=max_lag_s)
+#             aligned_signals.append(aligned_df['target_aligned'].values)
+
+#         mean_signal = np.mean(aligned_signals, axis=0)
+#         result[direction] = mean_signal
+        
+#         res_df = pd.DataFrame(result)
+#         # res_df = res_df.add_suffix('1')
+
+#     return res_df
+
+def coherent_summation(df, fs=800.0, method='gcc_phat', max_lag_s=None,
+                       win_len=201, tau=0.0, p=2, smooth_gamma=21,
+                       use_mask=True, use_median=True):
     """
-    Когерентне підсумовування з використанням допоміжних функцій compute_delay_matrix та align_two_signals.
+    Когерентне підсумовування з вагами за локальною когерентністю.
 
     Параметри:
-        df (pd.DataFrame): датафрейм з сигналами (назви колонок: 'Z1', 'Z2', 'R1', 'R2', тощо)
+        df (pd.DataFrame): датафрейм із сигналами (колонки: 'Z1','Z2', 'R1','R2', тощо)
         fs (float): частота дискретизації (Гц)
-        method (str): метод оцінки затримки
-        max_lag_s (float): максимальна затримка (тільки для 'cross_correlation')
+        method (str): метод оцінки затримки ('gcc_phat', 'cross_correlation' тощо)
+        max_lag_s (float): максимальна затримка
+        win_len (int): довжина ковзного вікна для локальних оцінок (непарне число)
+        tau (float): поріг когерентності (0 = не застосовується)
+        p (float): степенева вага γ² (м’яке приглушення)
+        smooth_gamma (int): ширина згладжування γ² (0 = без)
+        use_mask (bool): чи застосовувати ваги
+        use_median (bool): чи використовувати медіану замість зваженого середнього
 
     Повертає:
         pd.DataFrame: підсумовані сигнали за напрямами геофонів
     """
-    from collections import defaultdict
 
-    # Групування колонок за напрямами (усе крім останнього символу)
+    result = {}
+    # Групування колонок за напрямом (усе крім останнього символу)
     direction_groups = defaultdict(list)
     for col in df.columns:
         direction = col[:-1]
         direction_groups[direction].append(col)
 
-    result = {}
     for direction, cols in direction_groups.items():
-        signals = [df[col].values for col in cols]
-        ref_signal = signals[0]
+        # Референсний сигнал — перший канал у групі
+        ref_signal = df[cols[0]].to_numpy()
         aligned_signals = []
 
-        for sig in signals:
+        for col in cols:
+            sig = df[col].to_numpy()
             aligned_df = align_two_signals(ref_signal, sig, fs=fs, method=method, max_lag_s=max_lag_s)
-            aligned_signals.append(aligned_df['target_aligned'].values)
+            aligned_signals.append(aligned_df['target_aligned'].to_numpy())
 
-        mean_signal = np.mean(aligned_signals, axis=0)
-        result[direction] = mean_signal
-        
-        res_df = pd.DataFrame(result)
-        # res_df = res_df.add_suffix('1')
+        S = np.stack(aligned_signals, axis=1)  # (N, C)
+        r = S[:, 0]  # референс
 
-    return res_df
+        if not use_mask:
+            # просте середнє
+            result[direction] = np.mean(S, axis=1) if not use_median else np.median(S, axis=1)
+            continue
+
+        # --- локальні оцінки через ковзні суми ---
+        def moving_sum(x, L):
+            return uniform_filter1d(x.astype(float), size=L, mode="nearest") * L
+
+        R2 = moving_sum(r * r, win_len) + 1e-12
+
+        yhat_list, w_list = [], []
+        for c in range(S.shape[1]):
+            s = S[:, c]
+            RS = moving_sum(r * s, win_len)
+            S2 = moving_sum(s * s, win_len) + 1e-12
+
+            alpha = RS / S2
+            gamma2 = (RS * RS) / (R2 * S2)
+
+            # --- згладжування gamma² ---
+            if smooth_gamma and smooth_gamma > 1:
+                gamma2 = uniform_filter1d(gamma2, size=smooth_gamma, mode="nearest")
+
+            # --- маска/ваги ---
+            w = np.clip(gamma2 - tau, 0, 1) ** p
+            yhat_list.append(alpha * s)
+            w_list.append(w)
+
+        Y = np.stack(yhat_list, axis=1)   # (N, C)
+        W = np.stack(w_list, axis=1)      # (N, C)
+
+        if use_median:
+            # робастний варіант — медіана віднормованих сигналів
+            result[direction] = np.median(Y, axis=1)
+        else:
+            num = (W * Y).sum(axis=1)
+            den = W.sum(axis=1) + 1e-12
+            # result[direction] = num / den
+            result[direction] = num
+
+    return pd.DataFrame(result)
+
 
 
 # def duplicate_columns(df, n_seism):
