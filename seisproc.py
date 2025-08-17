@@ -2313,7 +2313,7 @@ def coherent_subtraction_adaptive_1d(
 
 def coherent_summation(df, fs=800.0, method='gcc_phat', max_lag_s=None,
                        win_len=201, tau=0.0, p=2, smooth_gamma=21,
-                       use_mask=True, use_median=True):
+                       use_mask=True, use_median=False):
     """
     Когерентне підсумовування з вагами за локальною когерентністю.
 
