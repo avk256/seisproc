@@ -351,8 +351,8 @@ def geo_spectr_with_colorbar(data_ser, fs, n_samples, start_date, name='',
         noverlap = int(nperseg * 0.9)
 
     # Захист від помилки: noverlap must be less than nperseg
-    if noverlap >= nperseg:
-        noverlap = nperseg - 1
+    #if noverlap >= nperseg:
+        #noverlap = nperseg - 1
 
     print('spectr')
     print(nperseg)
