@@ -415,7 +415,7 @@ def spectr_plot(df, fs=800, n_cols=4, columns=['X1','Y11','Y12','Z1','X2','Y21',
     for i, col in enumerate(columns):
         ax = axes[i]
         # Припускаємо, що geo_spectr_with_colorbar приймає параметр ax
-        geo_spectr_with_colorbar(df[col], fs=fs, n_samples=len(df), start_date='2025-05-21', name=col, ax=ax, seg_len_s=seg_len_s, overlap_s=seg_len_s)
+        geo_spectr_with_colorbar(df[col], fs=fs, n_samples=len(df), start_date='2025-05-21', name=col, ax=ax, seg_len_s=seg_len_s, overlap_s=overlap_s)
         # geo_spectr_with_colorbar(df[col], fs=fs, n_samples=len(df), start_date='2025-05-21', name=col)
 
     # Сховати зайві осі
