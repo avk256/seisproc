@@ -407,6 +407,11 @@ def spectr_plot(df, fs=800, n_cols=4, columns=['X1','Y11','Y12','Z1','X2','Y21',
     fig, axes = plt.subplots(n_rows, n_cols, figsize=(6 * n_cols, 4 * n_rows))
     axes = axes.flatten() if n > 1 else [axes]
 
+    print('spectr_plot')
+    print(seg_len_s)
+    print(overlap_s)
+
+
     for i, col in enumerate(columns):
         ax = axes[i]
         # Припускаємо, що geo_spectr_with_colorbar приймає параметр ax
