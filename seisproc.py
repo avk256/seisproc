@@ -338,8 +338,8 @@ def geo_spectr_with_colorbar(data_ser, fs, n_samples, start_date, name='',
     x = signal.values
 
     print('spectr')
-    print(nperseg)
-    print(noverlap)
+    print(seg_len_s)
+    print(overlap_s)
     print(fs)
 
     # Обчислюємо nperseg та noverlap
