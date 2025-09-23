@@ -1635,6 +1635,7 @@ def compute_snr_df(signal_df: pd.DataFrame, noise_df: pd.DataFrame) -> pd.DataFr
                       значення — SNR для кожного сигналу
     """
     snr_values = {}
+    snr_values_db = {}
 
     for col in signal_df.columns:
         signal = signal_df[col].values
@@ -1645,8 +1646,9 @@ def compute_snr_df(signal_df: pd.DataFrame, noise_df: pd.DataFrame) -> pd.DataFr
 
         snr = rms_signal / (rms_noise + 1e-20)  # Додаємо epsilon для уникнення ділення на нуль
         snr_values[col] = snr
+        snr_values_db[col] = 10*np.log10(snr + 1e-20)
 
-    return pd.DataFrame([snr_values])
+    return pd.DataFrame([snr_values]), pd.DataFrame([snr_values_db]) 
 
 
 def align_dataframe_lengths(df_list):
